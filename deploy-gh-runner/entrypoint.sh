@@ -1,4 +1,4 @@
-#!/bin/sh -l
+#!/bin/bash -l
 
 API_SERVER=$1
 ACCESS_TOKEN=$2
