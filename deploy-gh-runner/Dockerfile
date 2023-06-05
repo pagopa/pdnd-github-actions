@@ -12,4 +12,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl -LO https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl
 RUN curl -LO https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256
 RUN echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
-RUN rm -f kubectl.sha256 && chmod +x kubectl && chmod +x entrypoint.sh
+RUN rm -f kubectl.sha256 && \
+    chmod +x kubectl && \ 
+    chmod +x entrypoint.sh && \
+    wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && \
+    chmod +x yq
