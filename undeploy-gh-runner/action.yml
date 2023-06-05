@@ -27,5 +27,5 @@ runs:
     - ${{ inputs.api_server }}
     - ${{ inputs.access_token }}
     - ${{ inputs.base64_encoded_ca_crt }}
-    - ${{ inputs.name }}
+    - ${{ inputs.runner_label }}
     - ${{ inputs.namespace }}
