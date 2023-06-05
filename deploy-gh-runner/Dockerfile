@@ -2,8 +2,7 @@ FROM ubuntu:22.04
 
 ARG KUBECTL_VERSION=1.22.15
 
-COPY . /opt/runner
-WORKDIR /opt/runner
+COPY . .
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl=7.81.0-1ubuntu1.10 \
