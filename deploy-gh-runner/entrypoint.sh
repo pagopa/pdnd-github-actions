@@ -25,4 +25,3 @@ echo "$TEMPLATE" > runner.yaml
 kubectl apply -f runner.yaml --server="$API_SERVER" --token="$ACCESS_TOKEN" --certificate-authority=./ca.crt
 
 echo "runner_label=$RUNNER_LABEL" >> "${GITHUB_OUTPUT}"
-cat $GITHUB_OUTPUT
