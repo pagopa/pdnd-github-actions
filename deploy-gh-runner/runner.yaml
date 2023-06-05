@@ -1,0 +1,17 @@
+apiVersion: actions.summerwind.dev/v1alpha1
+kind: RunnerDeployment
+metadata:
+  name: pdnd-prova-spawner-20230605115939
+  namespace: prod-github-runners
+spec:
+  replicas: 1
+  template:
+    spec:
+      repository: pagopa/pdnd-ms-geo-tax
+      serviceAccountName: github-actions-sa
+      image: gateway.private.pdnd.pagopa.it/pagopa/pdnd-aws-runner-microservices:eks
+      dockerdWithinRunnerContainer: true
+      labels:
+        - pdnd-prova-spawner-20230605115939
+      imagePullSecrets:
+        - name: regcred
