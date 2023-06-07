@@ -1,0 +1,57 @@
+name: "deploy-gh-runner"
+description: Spawn GitHub Runners on Kubernetes through the Actions Runner Controller
+branding:
+  icon: package
+  color: blue
+inputs:
+  api_server:
+    required: true
+    description: "Kubernetes API Server address (must be public)"
+  access_token:
+    required: true
+    description: "Kubernetes ServiceAccount access token"
+  base64_encoded_ca_crt:
+    required: true
+    description: "CA certificate to connect to the API Server encoded in base64"
+  name:
+    required: true
+    description: "Runner name"
+  namespace:
+    required: false
+    default: default
+    description: "Namespace where the runner should be deployed"
+  image:
+    required: false
+    default: docker:dind
+    description: "Image the runner should run on"
+  repository:
+    required: false
+    default: ${{ github.repository }}
+    description: "Repository the runner is deployed for"
+  service_account:
+    required: true
+    description: "Kubernetes ServiceAccount for the runner"
+  docker_enabled:
+    required: false
+    default: "false"
+    description: "Flag to choose whether Docker should be enabled in the runner"
+  image_pull_secret:
+    required: false
+    description: "Kubernetes Secret name to pull the Runner image"
+outputs:
+  runner_label:
+    description: "The runner generated label to use when deleting it"
+runs:
+  using: "docker"
+  image: Dockerfile
+  args:
+    - ${{ inputs.api_server }}
+    - ${{ inputs.access_token }}
+    - ${{ inputs.base64_encoded_ca_crt }}
+    - ${{ inputs.name }}
+    - ${{ inputs.namespace }}
+    - ${{ inputs.image }}
+    - ${{ inputs.repository }}
+    - ${{ inputs.service_account }}
+    - ${{ inputs.docker_enabled }}
+    - ${{ inputs.image_pull_secret }}
