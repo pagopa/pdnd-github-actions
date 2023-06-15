@@ -94,7 +94,7 @@ def do_unversioned_deploy ():
     paused_dags = check_deployable_and_pause(dags)
     print("running deploy dags...")
     try:
-        exec = subprocess.run(['./deploy_dags.sh'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,text=True)
+        exec = subprocess.run(['/runner/deploy_dags.sh'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,text=True)
         exec.check_returncode()
         print(exec.stdout.strip("\n"))
     except subprocess.CalledProcessError as e:
@@ -105,7 +105,7 @@ def do_unversioned_deploy ():
 
 def do_versioned_deploy():
     try:
-        exec = subprocess.run(['./deploy_dags.sh'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,text=True)
+        exec = subprocess.run(['/runner/deploy_dags.sh'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,text=True)
         exec.check_returncode()
         print(exec.stdout.strip("\n"))
     except subprocess.CalledProcessError as e:
