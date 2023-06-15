@@ -1,8 +1,8 @@
 FROM python:3.9-slim
 
-COPY . /.
+COPY . /runner
 
-RUN chmod +x /entrypoint.sh && chmod +x /deploy_dags.sh 
-RUN pip install -r requirements.txt
+RUN chmod +x /runner/entrypoint.sh && chmod +x /runner/deploy_dags.sh
+RUN pip install -r /runner/requirements.txt
 
-ENTRYPOINT [ "/entrypoint.sh" ]
+ENTRYPOINT [ "/runner/entrypoint.sh" ]
