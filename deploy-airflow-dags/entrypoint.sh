@@ -3,6 +3,10 @@
 set -euo pipefail
 PROJECT=$1
 VERSION=$2
+export AIRFLOW_API_URL=$3
+export AIRFLOW_USERNAME=$4
+export AIRFLOW_PASSWORD=$5
+
 DEPLOY_META_PATH=deploy_metadata.env
 VERSIONED_DEPLOY=false
 if echo $VERSION | grep -iq "\(test\|beta\|dev\)"; then

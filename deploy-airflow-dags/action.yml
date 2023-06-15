@@ -10,9 +10,21 @@ inputs:
   version:
     required: true
     description: 'Release version of the project'
+  airflow_api_url:
+    required: true
+    description: 'Airflow instance Api url'
+  airflow_username:
+    required: true
+    description: 'Airflow instance username'
+  airflow_password:
+    required: true
+    description: 'Airflow instance password'
 runs:
   using: 'docker'
   image: 'Dockerfile'
   args:
     - ${{ inputs.project }}
     - ${{ inputs.version }}
+    - ${{ inputs.airflow_api_url }}
+    - ${{ inputs.airflow_username }}
+    - ${{ inputs.airflow_password }}
