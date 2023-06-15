@@ -3,7 +3,7 @@ import requests
 import os
 
 def load_deploy_metadata() -> dict:
-    with open("deploy_metadata.env", 'r') as f:
+    with open("/runner/deploy_metadata.env", 'r') as f:
        return dict(tuple(line.replace('\n', '').split('=')) for line
                 in f.readlines() if not line.startswith('#'))
 deploy_medatada = load_deploy_metadata()
