@@ -38,6 +38,14 @@ inputs:
   image_pull_secret:
     required: false
     description: "Kubernetes Secret name to pull the Runner image"
+  volume_claim:
+    required: false
+    default: "null"
+    description: "Kubernetes PersistentVolumeClaim to associate with the runner"
+  volume_mount_path:
+    required: false
+    default: "/mnt"
+    description: "Path where the PersistentVolumeClaim should be mounted inside the runner"
 outputs:
   runner_label:
     description: "The runner generated label to use when deleting it"
@@ -55,3 +63,5 @@ runs:
     - ${{ inputs.service_account }}
     - ${{ inputs.docker_enabled }}
     - ${{ inputs.image_pull_secret }}
+    - ${{ inputs.volume_claim }}
+    - ${{ inputs.volume_mount_path }}
