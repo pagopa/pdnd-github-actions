@@ -3,13 +3,14 @@ This action allows to deploy dags to Airflow instance.
 
 ## Inputs
 
-|                  |              |                                |
-|------------------|--------------|--------------------------------|
-| project          | **required** | Name of the project            |
-| version          | **required** | Release version of the project |
-| airflow_api_url  | **required** | Airflow instance Api url       |
-| airflow_username | **required** | Airflow instance username      |
-| airflow_password | **required** | Airflow instance password      |
+|                   |              |                                |
+|-------------------|--------------|--------------------------------|
+| project           | **required** | Name of the project            |
+| version           | **required** | Release version of the project |
+| airflow_api_url   | **required** | Airflow instance Api url       |
+| airflow_username  | **required** | Airflow instance username      |
+| airflow_password  | **required** | Airflow instance password      |
+| airflow_dags_path | **required** | Airflow dags path              |
 
 ## Example usage
 ```
