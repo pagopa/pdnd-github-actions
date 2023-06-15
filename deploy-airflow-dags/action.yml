@@ -1,0 +1,18 @@
+name: "Deploy Airflow dags"
+description: Deploy dags to Airflow instance
+branding:
+  icon: refresh-ccw
+  color: green
+inputs:
+  project:
+    required: true
+    description: 'Name of the project'
+  version:
+    required: true
+    description: 'Release version of the project'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - ${{ inputs.project }}
+    - ${{ inputs.version }}
