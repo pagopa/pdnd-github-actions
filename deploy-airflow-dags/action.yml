@@ -19,6 +19,9 @@ inputs:
   airflow_password:
     required: true
     description: 'Airflow instance password'
+  airflow_dags_path:
+    required: true
+    description: 'Airflow dags path'
 runs:
   using: 'docker'
   image: 'Dockerfile'
@@ -28,3 +31,4 @@ runs:
     - ${{ inputs.airflow_api_url }}
     - ${{ inputs.airflow_username }}
     - ${{ inputs.airflow_password }}
+    - ${{ inputs.airflow_dags_path }}
