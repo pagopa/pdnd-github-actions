@@ -14,3 +14,4 @@ echo "__project__='$PROJECT'" > _project.py
 echo "__versioned__='$VERSIONED_DEPLOY'" > _is_versioned.py
 zip  -r $ZIP_FILENAME *
 cp $ZIP_FILENAME $AIRFLOW_DAGS_VOLUME_PATH
+echo "Deploy to Airflow succeeded!"
