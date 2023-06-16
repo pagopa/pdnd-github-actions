@@ -28,6 +28,8 @@ jobs:
           service_account: example-service-account   
           docker_enabled: true
           image_pull_secret: example-pull-secret
+          volume_claim: example-claim
+          volume_mounth_path: /mnt/example
     outputs:
       runner_label: ${{ steps.create_runner.outputs.runner_label }}
   other_job:
@@ -53,3 +55,5 @@ You can customize the following parameters:
 | service_account | **required** | Kubernetes ServiceAccount used to execute the runner.
 | docker_enabled | **optional** | Flag to enable dockerd inside the runner to have Docker-in-Docker builds. Defaults to `false`.
 | repository | **optional** | Repository the runner is deployed for. Can be customized in the form `your-org-or-username/your-repo`. Defaults to the current repository.
+| volume_claim | **optional** | Name of the Kubernetes PersistentVolumeClaim to mount on the runner.
+| volume_mount_path | **optional** | Path where the volume should be mounted on the runner. Defaults to `/mnt`
