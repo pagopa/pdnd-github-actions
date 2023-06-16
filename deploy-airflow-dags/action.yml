@@ -33,7 +33,8 @@ runs:
       with:
         python-version: '3.9'
     - name: Install dependencies
-      run: pip install requests
+      run: pip install requestsù
+      shell: bash
     - name: Run deploy
       run: |
         ./entrypoint.sh \
