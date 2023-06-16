@@ -13,4 +13,6 @@ echo "__version__='$VERSION'" > _version.py
 echo "__project__='$PROJECT'" > _project.py
 echo "__versioned__='$VERSIONED_DEPLOY'" > _is_versioned.py
 zip  -r $ZIP_FILENAME *
+ls /mnt/efs
+ls $AIRFLOW_DAGS_VOLUME_PATH
 cp $ZIP_FILENAME $AIRFLOW_DAGS_VOLUME_PATH
