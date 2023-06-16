@@ -26,22 +26,13 @@ inputs:
     required: true
     description: 'Airflow dags volume mount path'
 runs:
-  using: 'composite'
-  steps:
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-    - name: Install dependencies
-      run: pip install requests
-    - name: Run deploy
-      run: |
-        ./entrypoint.sh \
-        ${{ inputs.project }} \
-        ${{ inputs.version }} \
-        ${{ inputs.airflow_api_url }} \
-        ${{ inputs.airflow_username }} \
-        ${{ inputs.airflow_password }} \
-        ${{ inputs.airflow_dags_path }} \
-        ${{ inputs.airflow_dags_volume_path }}
-      shell: bash
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - ${{ inputs.project }}
+    - ${{ inputs.version }}
+    - ${{ inputs.airflow_api_url }}
+    - ${{ inputs.airflow_username }}
+    - ${{ inputs.airflow_password }}
+    - ${{ inputs.airflow_dags_path }}
+    - ${{ inputs.airflow_dags_volume_path }}
