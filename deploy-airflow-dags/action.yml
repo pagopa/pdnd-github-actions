@@ -33,7 +33,7 @@ runs:
       with:
         python-version: '3.9'
     - name: Install dependencies
-      run: pip install requestsù
+      run: pip install requests
       shell: bash
     - name: Run deploy
       run: |
