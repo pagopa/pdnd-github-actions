@@ -37,7 +37,8 @@ runs:
       shell: bash
     - name: Run deploy
       run: |
-        ${{ github.action_path }}/entrypoint.sh \
+        cd ${{ github.action_path }}
+        ./entrypoint.sh \
         ${{ inputs.project }} \
         ${{ inputs.version }} \
         ${{ inputs.airflow_api_url }} \
