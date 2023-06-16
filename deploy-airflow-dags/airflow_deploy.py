@@ -3,7 +3,7 @@ import requests
 import os
 
 def load_deploy_metadata() -> dict:
-    with open("/runner/deploy_metadata.env", 'r') as f:
+    with open("./deploy_metadata.env", 'r') as f:
        return dict(tuple(line.replace('\n', '').split('=')) for line
                 in f.readlines() if not line.startswith('#'))
 deploy_medatada = load_deploy_metadata()
@@ -94,7 +94,7 @@ def do_unversioned_deploy ():
     paused_dags = check_deployable_and_pause(dags)
     print("running deploy dags...")
     try:
-        exec = subprocess.run(['/runner/deploy_dags.sh'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,text=True)
+        exec = subprocess.run(['./deploy_dags.sh'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,text=True)
         exec.check_returncode()
         print(exec.stdout.strip("\n"))
     except subprocess.CalledProcessError as e:
@@ -105,7 +105,7 @@ def do_unversioned_deploy ():
 
 def do_versioned_deploy():
     try:
-        exec = subprocess.run(['/runner/deploy_dags.sh'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,text=True)
+        exec = subprocess.run(['./deploy_dags.sh'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,text=True)
         exec.check_returncode()
         print(exec.stdout.strip("\n"))
     except subprocess.CalledProcessError as e:

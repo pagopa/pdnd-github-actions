@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-source /runner/deploy_metadata.env
+source ./deploy_metadata.env
 echo to version deploy : $VERSIONED_DEPLOY
  if [ "$VERSIONED_DEPLOY" = false ]
 then

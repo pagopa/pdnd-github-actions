@@ -9,7 +9,7 @@ export AIRFLOW_PASSWORD=$5
 export AIRFLOW_DAGS_PATH=$6
 export AIRFLOW_DAGS_VOLUME_PATH=$7
 
-DEPLOY_META_PATH=/runner/deploy_metadata.env
+DEPLOY_META_PATH=./deploy_metadata.env
 VERSIONED_DEPLOY=false
 if echo $VERSION | grep -iq "\(test\|beta\|dev\)"; then
     VERSIONED_DEPLOY=true
@@ -22,4 +22,4 @@ echo "AIRFLOW_DAGS_PATH=$AIRFLOW_DAGS_PATH" >> $DEPLOY_META_PATH
 echo "AIRFLOW_DAGS_VOLUME_PATH=$AIRFLOW_DAGS_VOLUME_PATH" >> $DEPLOY_META_PATH
 echo "VERSIONED_DEPLOY=$VERSIONED_DEPLOY" >> $DEPLOY_META_PATH
 
-python3 /runner/airflow_deploy.py
+python3 ./airflow_deploy.py
