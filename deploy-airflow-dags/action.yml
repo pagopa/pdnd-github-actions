@@ -36,7 +36,11 @@ runs:
       run: pip install requests
       shell: bash
     - name: Check dags folder
-      run: la -A ${{ inputs.airflow_dags_folder_path }}
+      run: |
+        if ! find $GITHUB_WORKSPACE/${{ inputs.airflow_dags_folder_path }} -mindepth 1 -maxdepth 1 | read; then
+          echo "Dags folder is empty"
+          exit 1
+        fi
     - name: Run deploy
       run: |
         cd ${{ github.action_path }}
