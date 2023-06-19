@@ -33,3 +33,8 @@ with:
   airflow_dags_folder_path: pdnd-pipeline-io-stats/dags
   airflow_dags_volume_path: /mnt/efs/airflow-data-dags
 ```
+
+## Example output
+Dags from the Airflow UI:
+
+!['example-output'](./example-output.png)
