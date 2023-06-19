@@ -35,6 +35,8 @@ runs:
     - name: Install dependencies
       run: pip install requests
       shell: bash
+    - name: Check dags folder
+      run: la -A ${{ inputs.airflow_dags_folder_path }}
     - name: Run deploy
       run: |
         cd ${{ github.action_path }}
