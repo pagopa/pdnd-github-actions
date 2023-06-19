@@ -1,0 +1,57 @@
+name: "Deploy Airflow dags"
+description: Deploy dags to Airflow instance
+branding:
+  icon: refresh-ccw
+  color: green
+inputs:
+  project:
+    required: true
+    description: 'Name of the project repo'
+  version:
+    required: true
+    description: 'Release version of the project repo'
+  airflow_api_url:
+    required: true
+    description: 'Airflow instance Api url'
+  airflow_username:
+    required: true
+    description: 'Airflow instance username'
+  airflow_password:
+    required: true
+    description: 'Airflow instance password'
+  airflow_dags_folder_path:
+    required: false
+    default: dags
+    description: 'Airflow dags folder path'
+  airflow_dags_volume_path:
+    required: true
+    description: 'Airflow dags volume mount path'
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    - name: Install dependencies
+      run: pip install requests
+      shell: bash
+    - name: Check dags folder
+      run: |
+        if ! find $GITHUB_WORKSPACE/${{ inputs.airflow_dags_folder_path }} -mindepth 1 -maxdepth 1 | read; then
+          echo "Dags folder is empty"
+          exit 1
+        fi
+      shell: bash
+    - name: Run deploy
+      run: |
+        cd ${{ github.action_path }}
+        ./entrypoint.sh \
+        ${{ inputs.project }} \
+        ${{ inputs.version }} \
+        ${{ inputs.airflow_api_url }} \
+        ${{ inputs.airflow_username }} \
+        ${{ inputs.airflow_password }} \
+        $GITHUB_WORKSPACE/${{ inputs.airflow_dags_folder_path }} \
+        ${{ inputs.airflow_dags_volume_path }}
+      shell: bash
