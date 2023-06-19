@@ -19,8 +19,8 @@ inputs:
   airflow_password:
     required: true
     description: 'Airflow instance password'
-    required: true
   airflow_dags_folder_path:
+    required: true
     description: 'Airflow dags folder path'
   airflow_dags_volume_path:
     required: true
