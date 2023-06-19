@@ -42,6 +42,7 @@ runs:
           echo "Dags folder is empty"
           exit 1
         fi
+      shell: bash
     - name: Run deploy
       run: |
         cd ${{ github.action_path }}
