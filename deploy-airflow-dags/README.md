@@ -6,10 +6,10 @@ Specs:
 - the volume claim must already be mounted on the runner on which the action will be triggered (see [deploy-gh-runner-action](..//deploy-gh-runner/action.yml) and [deploy-gh-runner-entrypoint](../deploy-gh-runner/entrypoint.sh))
 - the action does not use Airflow APIs for deploying and updating dags but only for internal checks, stopping and restarting dags
 - the action checks the input version:
-  - `vx.x.x` format is meant for production releases 
+  - `vx.x.x` format is meant for production releases:
     - in this case the `<project-repo-name>.zip` file will be overwritten
     - production dags will be named as `<project-repo-name>-<dag-name>`
-  - `vx.x.x-test`, `vx.x.x-beta`, `vx.x.x-dev` formats are meant for testing puroposes
+  - `vx.x.x-test`, `vx.x.x-beta`, `vx.x.x-dev` formats are meant for testing puroposes:
     - in this other case a new `<project-repo-name>-<version>.zip` file will be created
     - test dags will be named as `<project-repo-name>-<dag-name>-<version>`
 
@@ -34,7 +34,6 @@ with:
   airflow_api_url: ***
   airflow_username: ***
   airflow_password: ***
-  airflow_dags_folder_path: pdnd-pipeline-io-stats/dags
   airflow_dags_volume_path: /mnt/efs/airflow-data-dags
 ```
 
