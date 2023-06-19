@@ -20,7 +20,8 @@ inputs:
     required: true
     description: 'Airflow instance password'
   airflow_dags_folder_path:
-    required: true
+    required: false
+    default: dags
     description: 'Airflow dags folder path'
   airflow_dags_volume_path:
     required: true
@@ -50,6 +51,6 @@ runs:
         ${{ inputs.airflow_api_url }} \
         ${{ inputs.airflow_username }} \
         ${{ inputs.airflow_password }} \
-        ${{ inputs.airflow_dags_folder_path }} \
+        $GITHUB_WORKSPACE/${{ inputs.airflow_dags_folder_path }} \
         ${{ inputs.airflow_dags_volume_path }}
       shell: bash
