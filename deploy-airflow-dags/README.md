@@ -1,5 +1,6 @@
 # deploy-airflow-dags
-This action allows to deploy dags to Airflow instance.
+This action is a custom solution that allows to deploy dags to Airflow instance. <br>
+Specifically, the deploy consists in copying the Python files that describe the Airflow dags to a zip file shared on a Kubernetes volume claim.
 
 ## Inputs
 
