@@ -6,10 +6,10 @@ branding:
 inputs:
   project:
     required: true
-    description: 'Name of the project'
+    description: 'Name of the project repo'
   version:
     required: true
-    description: 'Release version of the project'
+    description: 'Release version of the project repo'
   airflow_api_url:
     required: true
     description: 'Airflow instance Api url'
