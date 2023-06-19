@@ -1,6 +1,9 @@
 # deploy-airflow-dags
 This action is a custom solution that allows to deploy dags to Airflow instance. <br>
-Specifically, the deploy consists in copying the Python files that describe the Airflow dags to a zip file shared on a Kubernetes volume claim.
+Specifically:
+- an essential prerequisite is a folder containing all the Python files that describe the Airflow dags inside the repo to be deployed
+- the deploy consists in copying the Python files to a zip file shared on a Kubernetes volume claim
+- the action does not use Airflow APIs for updating dags but only for internal checks, stopping and re-starting dags
 
 ## Inputs
 
