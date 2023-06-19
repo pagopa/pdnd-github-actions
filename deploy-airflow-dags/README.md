@@ -5,7 +5,7 @@ Specs:
 - the deploy consists in copying the above Python files to a .zip file named as `<project-repo-name>.zip` shared on a Kubernetes volume claim
 - the volume claim must already be mounted on the runner on which the action will be triggered (see [deploy-gh-runner-action](..//deploy-gh-runner/action.yml) and [deploy-gh-runner-entrypoint](../deploy-gh-runner/entrypoint.sh))
 - the action does not use Airflow APIs for deploying and updating dags but only for internal checks, stopping and restarting dags
-- the action checks the input tag version format:
+- the action checks the input version:
   - `vx.x.x` format is meant for production releases 
     - in this case the `<project-repo-name>.zip` file will be overwritten
     - production dags will be named as `<project-repo-name>-<dag-name>`
@@ -17,12 +17,12 @@ Specs:
 
 |                          |              |                                                                              |
 |--------------------------|--------------|------------------------------------------------------------------------------|
-| project                  | **required** | Name of the project                                                          |
-| version                  | **required** | Release version of the project                                               |
+| project                  | **required** | Name of the project  repo                                                    |
+| version                  | **required** | Release version of the project repo                                          |
 | airflow_api_url          | **required** | Airflow instance Api url                                                     |
 | airflow_username         | **required** | Airflow instance username                                                    |
 | airflow_password         | **required** | Airflow instance password                                                    |
-| airflow_dags_folder_path | **required** | Airflow dags folder path                                                     |
+| airflow_dags_folder_path |              | Airflow dags folder path (default is `dags`)                                 |
 | airflow_dags_volume_path | **required** | Airflow dags volume mount path (`airflow-data-dags` or `airflow-infra-dags`) |
 
 ## Example usage
