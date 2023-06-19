@@ -7,7 +7,7 @@ then
 else
     ZIP_FILENAME=$PROJECT'_'$VERSION.zip
 fi
-cd $AIRFLOW_DAGS_PATH
+cd $AIRFLOW_DAGS_FOLDER_PATH
 touch __init__.py
 echo "__version__='$VERSION'" > _version.py
 echo "__project__='$PROJECT'" > _project.py

@@ -19,9 +19,9 @@ inputs:
   airflow_password:
     required: true
     description: 'Airflow instance password'
-  airflow_dags_path:
     required: true
-    description: 'Airflow dags path'
+  airflow_dags_folder_path:
+    description: 'Airflow dags folder path'
   airflow_dags_volume_path:
     required: true
     description: 'Airflow dags volume mount path'
@@ -44,6 +44,6 @@ runs:
         ${{ inputs.airflow_api_url }} \
         ${{ inputs.airflow_username }} \
         ${{ inputs.airflow_password }} \
-        ${{ inputs.airflow_dags_path }} \
+        ${{ inputs.airflow_dags_folder_path }} \
         ${{ inputs.airflow_dags_volume_path }}
       shell: bash
