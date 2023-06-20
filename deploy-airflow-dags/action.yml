@@ -29,13 +29,6 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-    - name: Install dependencies
-      run: pip install requests
-      shell: bash
     - name: Check dags folder
       run: |
         if ! find $GITHUB_WORKSPACE/${{ inputs.airflow_dags_folder_path }} -mindepth 1 -maxdepth 1 | read; then
