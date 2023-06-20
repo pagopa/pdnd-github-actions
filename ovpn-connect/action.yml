@@ -1,0 +1,53 @@
+name: "OVPN connection"
+description: "Connect to openvpn"
+inputs:
+   OVPN_USERNAME:
+     required: true
+     description: "Username"
+   OVPN_CLIENT_KEY:
+     required: true
+     description: "client PEM file"
+   OVPN_TLS_AUTH_KEY:
+     required: true
+     description: "TLS auth key"
+   CLIENT_FILE_LOCATION:
+     required: false
+     description: "TLS auth key"
+     default: .github/workflows/client.ovpn
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Install OpenVPN
+      run: |
+        sudo apt update
+        sudo apt install -y openvpn openvpn-systemd-resolved
+        sudo systemctl enable systemd-resolved.service
+        sudo systemctl start systemd-resolved.service
+        echo  "
+        <tls-crypt>
+        $OVPN_TLS_AUTH_KEY
+        </tls-crypt>
+        " >> $CLIENT_FILE_LOCATION
+        echo  "
+        script-security 2
+        setenv PATH /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+        up /etc/openvpn/update-systemd-resolved
+        down /etc/openvpn/update-systemd-resolved
+        down-pre
+        " >> $CLIENT_FILE_LOCATION
+      shell: bash
+      env:
+        OVPN_TLS_AUTH_KEY: ${{ inputs.OVPN_TLS_AUTH_KEY }}
+        CLIENT_FILE_LOCATION: ${{ inputs.CLIENT_FILE_LOCATION }}
+
+    - name: Connect to VPN
+      uses: "kota65535/github-openvpn-connect-action@v2"
+      with:
+        config_file:  ${{ inputs.CLIENT_FILE_LOCATION }}
+        username: ${{ inputs.OVPN_USERNAME }}
+        client_key: ${{ inputs.OVPN_CLIENT_KEY }}
+    - name: Check if connected
+      shell: bash
+      run: curl -v https://gateway.private.pdnd.pagopa.it/nexus/
