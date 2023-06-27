@@ -76,9 +76,12 @@ jobs:
           token: ${{ secrets.PAT_BOT }}
           branch_name: 'PA-406'
           bot_name: ${{ env.BOT_USERNAME }}
+      - name: Set environment variable
+        run: echo "RELEASE_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+    outputs:
+      release_tag: ${{ env.RELEASE_TAG }}
   deploy:
     runs-on: [ self-hosted, "${{ needs.create_runner.outputs.runner_label }}" ]
-    if: github.ref_type == 'tag'
     needs:
       - create_runner
       - release
@@ -86,7 +89,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.ref }}
+          ref: "${{ needs.release.outputs.release_tag }}"
           persist-credentials: false
       - name: Java Setup
         uses: actions/setup-java@v3
