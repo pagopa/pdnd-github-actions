@@ -74,7 +74,7 @@ jobs:
         uses: pagopa/pdnd-github-actions/push-bot@v1.0.1
         with:
           token: ${{ secrets.PAT_BOT }}
-          branch_name: 'master'
+          branch_name: 'PA-406'
           bot_name: ${{ env.BOT_USERNAME }}
   deploy:
     runs-on: [ self-hosted, "${{ needs.create_runner.outputs.runner_label }}" ]
