@@ -2,6 +2,11 @@ name: Release
 on:
   workflow_call:
     inputs:
+      branch_name:
+        description: 'Release Branch name'
+        default: "master"
+        required: false
+        type: string
       native:
         description: 'Native Build'
         default: false
@@ -74,7 +79,7 @@ jobs:
         uses: pagopa/pdnd-github-actions/push-bot@v1.0.1
         with:
           token: ${{ secrets.PAT_BOT }}
-          branch_name: 'PA-406'
+          branch_name: ${{ inputs.branch_name }}
           bot_name: ${{ env.BOT_USERNAME }}
       - name: Set environment variable
         run: echo "RELEASE_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
