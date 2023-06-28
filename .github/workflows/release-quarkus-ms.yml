@@ -57,4 +57,4 @@ jobs:
           branch_name: ${{ inputs.branch_name }}
           bot_name: ${{ env.BOT_USERNAME }}
       - name: Workflow trigger
-        run: "gh workflow run deploy-quarkus-ms.yml@PA-406 --ref $(git describe --tags --abbrev=0) --field native=${{ github.event.inputs.native }}" #
+        run: "gh workflow run pagopa/pdnd-github-actions/.github/workflows/deploy-quarkus-ms.yml@PA-406 --ref $(git describe --tags --abbrev=0) --field native=${{ github.event.inputs.native }}" #
