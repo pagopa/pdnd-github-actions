@@ -3,8 +3,8 @@ on:
   workflow_call:
     inputs:
       branch_name:
-        description: 'Release Branch name'
-        default: "main"
+        description: 'Release branch name'
+        default: ${{ github.ref }}
         required: false
         type: string
       native:
