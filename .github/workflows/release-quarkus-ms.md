@@ -18,3 +18,5 @@ This workflow is meant to be triggered manually whenever a new release of the mi
 - build the container image for the specified tag
 - deploy the just built container image as Deployment in Kubernetes
 - destroy runner
+
+## deploy   todo

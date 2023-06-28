@@ -4,7 +4,7 @@ on:
     inputs:
       branch_name:
         description: 'Release Branch name'
-        default: "master"
+        default: "main"
         required: false
         type: string
       native:
@@ -66,4 +66,4 @@ jobs:
       - name: Set environment variable
         run: echo "RELEASE_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
       - name: Workflow trigger
-        run: "gh workflow run release-build-quarkus-ms.yml --ref $(git describe --tags --abbrev=0) --field native=${{ github.event.inputs.native }}" #
+        run: "gh workflow run deploy-quarkus-ms.yml --ref $(git describe --tags --abbrev=0) --field native=${{ github.event.inputs.native }}" #
