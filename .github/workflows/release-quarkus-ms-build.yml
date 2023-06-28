@@ -1,5 +1,15 @@
 name: Release Build
 on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Tag to Deploy'
+        required: true
+        type: string
+      native:
+        description: 'Native Build'
+        required: true
+        type: boolean
   workflow_dispatch:
     inputs:
       tag:
