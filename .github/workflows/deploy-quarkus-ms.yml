@@ -12,6 +12,10 @@ on:
         required: false
         type: string
 jobs:
+  log_ref_name:
+    runs-on: ubuntu-latest
+    run: |
+      echo ${{ inputs.ref_name }}
   create_runner:
     runs-on: ubuntu-latest
     steps:
@@ -32,10 +36,12 @@ jobs:
       runner_label: ${{ steps.create_runner.outputs.runner_label }}
   deploy:
     runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
-    if: github.ref_type == 'tag'
     needs:
       - create_runner
     steps:
+      - name: Check if ref is a tag
+        run: |
+          git show-ref --verify refs/tags/${{ inputs.ref_name }} >& /dev/null || (echo "The specified ref is not a tag. Please select a valid tag ref." && exit 1)
       - name: Checkout
         uses: actions/checkout@v3
         with:
