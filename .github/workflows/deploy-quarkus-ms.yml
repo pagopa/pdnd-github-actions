@@ -12,10 +12,6 @@ on:
         required: false
         type: string
 jobs:
-  log_ref_name:
-    runs-on: ubuntu-latest
-    run: |
-      echo ${{ inputs.ref_name }}
   create_runner:
     runs-on: ubuntu-latest
     steps:
