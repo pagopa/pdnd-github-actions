@@ -12,6 +12,10 @@ on:
         default: false
         required: true
         type: boolean
+    outputs:
+      release_tag:
+        description: "Release Tag name"
+        value: ${{ jobs.release.outputs.release_tag }}
 jobs:
   release:
     env:
@@ -58,9 +62,11 @@ jobs:
           bot_name: ${{ env.BOT_USERNAME }}
       - name: Set environment variable
         run: echo "RELEASE_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
-      - name: Call Workflow deploy
-        uses: pagopa/pdnd-github-actions/.github/workflows/deploy-quarkus-ms.yml@PA-406
-        with:
-          native: ${{ inputs.native }}
-          ref: ${{ git describe --tags --abbrev=0 }}
+    outputs:
+      release_tag: ${{ env.RELEASE_TAG }}
+#       - name: Call Workflow deploy
+#         uses: pagopa/pdnd-github-actions/.github/workflows/deploy-quarkus-ms.yml@PA-406
+#         with:
+#           native: ${{ inputs.native }}
+#           ref: ${{ git describe --tags --abbrev=0 }}
         ##run: "gh workflow run pagopa/pdnd-github-actions/workflows/deploy-quarkus-ms.yml@PA-406 --ref $(git describe --tags --abbrev=0) --field native=${{ github.event.inputs.native }}" #
