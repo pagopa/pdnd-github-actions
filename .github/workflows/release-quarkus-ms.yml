@@ -56,5 +56,11 @@ jobs:
           token: ${{ secrets.PAT_BOT }}
           branch_name: ${{ inputs.branch_name }}
           bot_name: ${{ env.BOT_USERNAME }}
-      - name: Workflow trigger
-        run: "gh workflow run pagopa/pdnd-github-actions/workflows/deploy-quarkus-ms.yml@PA-406 --ref $(git describe --tags --abbrev=0) --field native=${{ github.event.inputs.native }}" #
+      - name: Set environment variable
+        run: echo "RELEASE_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+      - name: Call Workflow deploy
+        uses: pagopa/pdnd-github-actions/.github/workflows/deploy-quarkus-ms.yml@PA-406
+        with:
+          native: ${{ inputs.native }}
+          ref: ${{ git describe --tags --abbrev=0 }}
+        ##run: "gh workflow run pagopa/pdnd-github-actions/workflows/deploy-quarkus-ms.yml@PA-406 --ref $(git describe --tags --abbrev=0) --field native=${{ github.event.inputs.native }}" #
