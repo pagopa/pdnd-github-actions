@@ -37,7 +37,7 @@ jobs:
     steps:
       - name: Check if ref is a tag
         run: |
-          git show-ref --verify refs/tags/${{ inputs.ref_name }} >& /dev/null || (echo "The specified ref is not a tag. Please select a valid tag ref." && exit 1)
+          git show-ref --verify refs/tags/${{ inputs.ref_name }}
       - name: Checkout
         uses: actions/checkout@v3
         with:
