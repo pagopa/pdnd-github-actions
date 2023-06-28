@@ -1,14 +1,16 @@
 name: Deploy
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       native:
         description: 'Native Build'     
         required: true
         type: boolean
-  push:
-    tags:
-     - 'v*'
+      ref_name:
+        description: 'Deploy ref name'
+        default: ${{ github.ref }}
+        required: false
+        type: string
 jobs:
   create_runner:
     runs-on: ubuntu-latest
@@ -37,7 +39,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ inputs.ref_name }}
           persist-credentials: false
       - name: Java Setup
         uses: actions/setup-java@v3
