@@ -12,13 +12,33 @@ on:
         description: "Release Tag name"
         value: ${{ jobs.release.outputs.release_tag }}
 jobs:
+  create_runner:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Runner
+        id: create_runner
+        uses: pagopa/pdnd-github-actions/deploy-gh-runner@v1.0.1
+        with:
+          api_server: ${{ vars.K8S_API_SERVER }}
+          access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
+          base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
+          name: pdnd-ms-io-stats
+          namespace: prod-github-runners
+          image: gateway.private.pdnd.pagopa.it/pagopa/pdnd-aws-runner-microservices:v1.1.3
+          service_account: github-actions-sa        
+          docker_enabled: true
+          image_pull_secret: regcred
+    outputs:
+      runner_label: ${{ steps.create_runner.outputs.runner_label }}
   release:
+    runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
+    needs:
+      - create_runner
     env:
       GITHUB_TOKEN: ${{ secrets.PAT_BOT }}
       JAVA_HOME: /usr/lib/jvm/temurin-17-jdk-amd64
       BOT_USERNAME: pdnd-pagopa-github-bot
       BOT_EMAIL: "pdnd-pagopa-github-bot@pagopa.it"
-    runs-on: ubuntu-latest
     environment: prod
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
     steps:
@@ -59,9 +79,19 @@ jobs:
         run: echo "RELEASE_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
     outputs:
       release_tag: ${{ env.RELEASE_TAG }}
-#       - name: Call Workflow deploy
-#         uses: pagopa/pdnd-github-actions/.github/workflows/deploy-quarkus-ms.yml@PA-406
-#         with:
-#           native: ${{ inputs.native }}
-#           ref: ${{ git describe --tags --abbrev=0 }}
-        ##run: "gh workflow run pagopa/pdnd-github-actions/workflows/deploy-quarkus-ms.yml@PA-406 --ref $(git describe --tags --abbrev=0) --field native=${{ github.event.inputs.native }}" #
+  destroy_runner:
+    runs-on: ubuntu-latest
+    if: ${{ always() && !contains(needs.create_runner.result, 'failure') }}
+    needs:
+      - create_runner
+      - release
+    steps:
+      - name: Destroy Runner
+        id: destroy_runner
+        uses: pagopa/pdnd-github-actions/undeploy-gh-runner@v1.0.1
+        with:
+          api_server: ${{ vars.K8S_API_SERVER }}
+          access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
+          base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
+          runner_label: ${{ needs.create_runner.outputs.runner_label }}
+          namespace: prod-github-runners
