@@ -16,12 +16,15 @@ base_url=os.environ['AIRFLOW_API_URL']
 
 project_name=deploy_medatada['PROJECT']
 
+versioned_keywords = ['test','beta','dev']
+
 def build_auth(credentials):
     return requests.auth.HTTPBasicAuth(username=credentials["user"], password=credentials["password"])
 
 def include_dag(dag):
-    dag_id = dag["dag_id"] 
-    return dag_id.startswith(project_name + "-") and not any('test' in x["name"].lower() for x in dag["tags"]) 
+    dag_id = dag["dag_id"]
+    tags = [x["name"].lower() for x in dag["tags"]]
+    return dag_id.startswith(project_name + "-") and not any(k for k in versioned_keywords for tag in tags if k in tag) 
 
 def detect_dags_to_deploy():
     print(f"loading dags relative to this project...")
