@@ -12,3 +12,11 @@ The workflow is meant to be triggered on push of new tags and it will:
 - destroy runner
 
 For details about Airflow dags deploy Action see [deploy-airflow-dags](https://github.com/pagopa/pdnd-github-actions/blob/master/deploy-airflow-dags/README.md).
+
+## Inputs
+
+|                            |              |                                                                                                                                     |
+|----------------------------|--------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| airflow_volume_claim       |              | Name of the Kubernetes PersistentVolumeClaim to mount on the runner for deploy to Airflow instance. Default is `airflow-dag-volume` |
+| airflow_volume_mount_path  |              | Path where the volume for deploy to Airflow instance should be mounted on the runner. Default is `/mnt/efs`                         |
+| airflow_volume_subpath_env | **required** | Airflow volume subpath env  (`data` or `infra`)                                                                                     |
