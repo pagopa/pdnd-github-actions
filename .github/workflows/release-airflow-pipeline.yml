@@ -1,6 +1,16 @@
 name: Release Airflow Pipeline
 on:
   workflow_call:
+    inputs:
+        volume_claim:
+          required: true
+          type: string
+        volume_mount_path:
+          required: true
+          type: string
+        airflow_dags_volume_path:
+          required: true
+          type: string
 jobs:
     create_runner:
       name: Create runner
@@ -20,8 +30,8 @@ jobs:
             service_account: github-actions-sa        
             docker_enabled: true
             image_pull_secret: regcred
-            volume_claim: airflow-dag-volume
-            volume_mount_path: /mnt/efs
+            volume_claim: ${{ inputs.volume_claim }}
+            volume_mount_path: ${{ inputs.volume_mount_path }}
       outputs:
         runner_label: ${{ steps.create_runner.outputs.runner_label }}
     release:
@@ -70,7 +80,7 @@ jobs:
             airflow_api_url: ${{ vars.AIRFLOW_API_URL }}
             airflow_username: ${{ secrets.AIRFLOW_USERNAME }}
             airflow_password: ${{ secrets.AIRFLOW_PASSWORD }}
-            airflow_dags_volume_path: /mnt/efs/airflow-data-dags
+            airflow_dags_volume_path: ${{ inputs.volume_mount_path }}/${{ inputs.airflow_dags_volume_path }}
         - name: Slack Notification
           uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
           if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
