@@ -82,7 +82,7 @@ jobs:
             airflow_api_url: ${{ vars.AIRFLOW_API_URL }}
             airflow_username: ${{ secrets.AIRFLOW_USERNAME }}
             airflow_password: ${{ secrets.AIRFLOW_PASSWORD }}
-            airflow_dags_volume_path: ${{ inputs.volume_mount_path }}/airflow-${{ inputs.airflow_volume_subpath_env }}-dags
+            airflow_dags_volume_path: ${{ inputs.airflow_volume_mount_path }}/airflow-${{ inputs.airflow_volume_subpath_env }}-dags
         - name: Slack Notification
           uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
           if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
