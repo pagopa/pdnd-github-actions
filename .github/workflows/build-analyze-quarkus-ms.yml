@@ -1,0 +1,89 @@
+name: Build Analyze
+on:
+  workflow_call:
+jobs:
+  create_runner:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Runner
+        id: create_runner
+        uses: pagopa/pdnd-github-actions/deploy-gh-runner@v1.0.1
+        with:
+          api_server: ${{ vars.K8S_API_SERVER }}
+          access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
+          base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
+          name: ${{ github.event.repository.name }}
+          namespace: prod-github-runners
+          image: gateway.private.pdnd.pagopa.it/pagopa/pdnd-aws-runner-microservices:v1.1.3
+          service_account: github-actions-sa        
+          docker_enabled: true
+          image_pull_secret: regcred
+    outputs:
+      runner_label: ${{ steps.create_runner.outputs.runner_label }}
+  build:
+    if: "!contains(github.event.head_commit.message, '[ci skip]')" #skip on commit done by release pipeline
+    name: Build and analyze
+    needs:
+      - create_runner
+    runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - name: Java Setup
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v1
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      - name: Cache Maven packages
+        uses: actions/cache@v1
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2
+          restore-keys: ${{ runner.os }}-m2
+      # - name: Java checkstyle
+      #   uses: dbelyaev/action-checkstyle@v0.7.5
+      #   with:
+      #     github_token: ${{ secrets.GITHUB_TOKEN }}
+      #     reporter: github-pr-review
+      #     level: warning
+      - name: Build and UT
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: QUARKUS_PROFILE=test mvn package -DskipITs=true
+      - name: Analyze and IT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: QUARKUS_PROFILE=test mvn verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar 
+          -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+          -DskipUTs=true 
+          -Dsonar.qualitygate.wait=true
+          -Dsonar.coverage.exclusions=**/test/**,**/health/**,**/metrics**/
+      - name: Update dependency graph
+        uses: advanced-security/maven-dependency-submission-action@571e99aab1055c2e71a1e2309b9691de18d6b7d6
+
+  destroy_runner:
+    runs-on: ubuntu-latest
+    if: ${{ always() && !contains(needs.create_runner.result, 'failure') }}
+    needs:
+      - create_runner
+      - build
+    steps:
+      - name: Destroy Runner
+        id: destroy_runner
+        uses: pagopa/pdnd-github-actions/undeploy-gh-runner@v1.0.1
+        with:
+          api_server: ${{ vars.K8S_API_SERVER }}
+          access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
+          base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
+          runner_label: ${{ needs.create_runner.outputs.runner_label }}
+          namespace: prod-github-runners
