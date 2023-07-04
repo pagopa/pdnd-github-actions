@@ -10,7 +10,7 @@ on:
           required: false
           default: /mnt/efs
           type: string
-        airflow_volume_subpath_env:
+        airflow_env:
           required: true
           type: string
 jobs:
@@ -79,10 +79,10 @@ jobs:
           with:
             project: ${{ github.event.repository.name }}
             version: ${{ steps.version.outputs.full }}
-            airflow_api_url: ${{ vars.AIRFLOW_API_URL }}
+            airflow_api_url: "${{ vars.PDND_GATEWAY_URL }}/airflow-${{ inputs.airflow_env }}/api/v1"
             airflow_username: ${{ secrets.AIRFLOW_USERNAME }}
             airflow_password: ${{ secrets.AIRFLOW_PASSWORD }}
-            airflow_dags_volume_path: ${{ inputs.airflow_volume_mount_path }}/airflow-${{ inputs.airflow_volume_subpath_env }}-dags
+            airflow_dags_volume_path: ${{ inputs.airflow_volume_mount_path }}/airflow-${{ inputs.airflow_env }}-dags
         - name: Slack Notification
           uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
           if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
