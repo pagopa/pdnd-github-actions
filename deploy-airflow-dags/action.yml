@@ -44,7 +44,7 @@ runs:
         ${{ inputs.version }} \
         ${{ inputs.airflow_api_url }} \
         ${{ inputs.airflow_username }} \
-        ${{ inputs.airflow_password }} \
+        '${{ inputs.airflow_password }}' \
         $GITHUB_WORKSPACE/${{ inputs.airflow_dags_folder_path }} \
         ${{ inputs.airflow_dags_volume_path }}
       shell: bash
