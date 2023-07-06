@@ -8,11 +8,11 @@ else
     ZIP_FILENAME=$PROJECT'_'$VERSION.zip
 fi
 cd $AIRFLOW_DAGS_FOLDER_PATH
-echo "ZIP_FILENAME : $ZIP_FILENAME"
+echo "Creating zip file : $ZIP_FILENAME"
 touch __init__.py
 echo "__version__='$VERSION'" > _version.py
 echo "__project__='$PROJECT'" > _project.py
 echo "__versioned__='$VERSIONED_DEPLOY'" > _is_versioned.py
 zip  -r $ZIP_FILENAME *
-cp $ZIP_FILENAME $AIRFLOW_DAGS_VOLUME_PATH
+cp -f $ZIP_FILENAME $AIRFLOW_DAGS_VOLUME_PATH
 echo "Deploy to Airflow succeeded!"
