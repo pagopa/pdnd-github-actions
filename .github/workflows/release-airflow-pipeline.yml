@@ -83,7 +83,7 @@ jobs:
             provenance: false
             tags: ${{ vars.IMAGE_REGISTRY_URL }}/${{ github.event.repository.name }}-image:${{ steps.version.outputs.full }}
         - name: Deploy Airflow dags
-          uses: pagopa/pdnd-github-actions/deploy-airflow-dags@4eaa7379b22ec696e06273e6216257423677c8eb
+          uses: pagopa/pdnd-github-actions/deploy-airflow-dags@1530bba58cce19e93a8591ad9d88e7afb7710e9b
           with:
             project: ${{ github.event.repository.name }}
             version: ${{ steps.version.outputs.full }}
