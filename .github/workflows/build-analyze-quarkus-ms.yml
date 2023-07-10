@@ -6,7 +6,7 @@ on:
         description: 'Native Build'
         default: false
         required: true
-        type: boolean
+        type: string
 jobs:
   create_runner:
     runs-on: ubuntu-latest
