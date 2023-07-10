@@ -4,7 +4,8 @@ on:
     inputs:
       native:
         description: 'Native Build'
-        required: true
+        default: false
+        required: false
         type: boolean
 jobs:
   create_runner:
