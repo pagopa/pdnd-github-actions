@@ -1,6 +1,12 @@
 name: Build Analyze
 on:
   workflow_call:
+    inputs:
+      native:
+        description: 'Native Build'
+        default: 'false'
+        required: false
+        type: string
 jobs:
   create_runner:
     runs-on: ubuntu-latest
@@ -65,7 +71,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: QUARKUS_PROFILE=test mvn verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar 
           -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
-          -DskipUTs=true 
+          -DskipUTs=true ${{ inputs.native == 'true' && '-Pnative -Dquarkus.native.container-build=true ' || '' }}
           -Dsonar.qualitygate.wait=true
           -Dsonar.coverage.exclusions=**/test/**,**/health/**,**/metrics**/
       - name: Update dependency graph
