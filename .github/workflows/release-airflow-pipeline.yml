@@ -10,9 +10,13 @@ on:
           required: false
           default: /mnt/efs
           type: string
-        airflow_volume_subpath_env:
+        airflow_env:
           required: true
           type: string
+        run_docker_build:
+          required: false
+          default: true
+          type: boolean
 jobs:
     create_runner:
       name: Create runner
@@ -50,21 +54,25 @@ jobs:
           run: |
                 echo "Version: ${{github.ref_name}} is not valid!"
                 exit 1
+        - name: Check out the repo
+          uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
         - name: Set up QEMU
           uses: docker/setup-qemu-action@2b82ce82d56a2a04d2637cd93a637ae1b359c0a7
+          if: ${{ inputs.run_docker_build }}
         - name: Set up Docker Buildx
           id: buildx
           uses: docker/setup-buildx-action@ecf95283f03858871ff00b787d79c419715afc34
-        - name: Check out the repo
-          uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+          if: ${{ inputs.run_docker_build }}
         - name: Docker Login
           uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+          if: ${{ inputs.run_docker_build }}
           with:
             registry: ${{ vars.IMAGE_REGISTRY_URL }}
             username: ${{ secrets.NEXUS_USERNAME }}
             password: ${{ secrets.NEXUS_PASSWORD }}
         - name: Docker Build and Push
           uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
+          if: ${{ inputs.run_docker_build }}
           with:
             build-args: |
               nexus=${{ vars.IMAGE_REGISTRY_URL }}
@@ -75,14 +83,14 @@ jobs:
             provenance: false
             tags: ${{ vars.IMAGE_REGISTRY_URL }}/${{ github.event.repository.name }}-image:${{ steps.version.outputs.full }}
         - name: Deploy Airflow dags
-          uses: pagopa/pdnd-github-actions/deploy-airflow-dags@4eaa7379b22ec696e06273e6216257423677c8eb
+          uses: pagopa/pdnd-github-actions/deploy-airflow-dags@1d69db82abb736b2301a636a6de243c9bb4505c3
           with:
             project: ${{ github.event.repository.name }}
             version: ${{ steps.version.outputs.full }}
-            airflow_api_url: ${{ vars.AIRFLOW_API_URL }}
+            airflow_api_url: "${{ vars.PDND_GATEWAY_URL }}/airflow-${{ inputs.airflow_env }}/api/v1"
             airflow_username: ${{ secrets.AIRFLOW_USERNAME }}
             airflow_password: ${{ secrets.AIRFLOW_PASSWORD }}
-            airflow_dags_volume_path: ${{ inputs.airflow_volume_mount_path }}/airflow-${{ inputs.airflow_volume_subpath_env }}-dags
+            airflow_dags_volume_path: ${{ inputs.airflow_volume_mount_path }}/airflow-${{ inputs.airflow_env }}-dags
         - name: Slack Notification
           uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
           if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
