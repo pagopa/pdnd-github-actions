@@ -4,6 +4,7 @@ on:
     inputs:
       native:
         description: 'Native Build'
+        default: 'false'
         required: true
         type: string
 jobs:
