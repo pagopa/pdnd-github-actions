@@ -9,7 +9,7 @@ on:
       ref_name:
         description: 'Deploy ref name'
         default: ${{ github.ref }}
-        required: true
+        required: false
         type: string
 jobs:
   create_runner:
