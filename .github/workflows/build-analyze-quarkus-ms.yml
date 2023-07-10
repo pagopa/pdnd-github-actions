@@ -5,7 +5,7 @@ on:
       native:
         description: 'Native Build'
         default: 'false'
-        required: true
+        required: false
         type: string
 jobs:
   create_runner:
