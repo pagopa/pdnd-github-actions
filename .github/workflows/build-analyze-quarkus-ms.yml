@@ -64,7 +64,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: QUARKUS_PROFILE=test mvn package
+        run: QUARKUS_PROFILE=test mvn package -DskipITs=true
       - name: Analyze and IT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
