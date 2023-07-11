@@ -47,9 +47,21 @@ jobs:
             #echo "Error: Workflow must be triggered from default branch ($default_branch)." >&2
             #exit 1
           #fi
-      - name: Check if ref is a tag
+      #- name: Check if ref is a tag
+       # run: |
+        #  git show-ref --verify refs/tags/${{ inputs.ref_name }}
+      - name: Check if ref is a tag (from release)
+        id: verifica_tag
         run: |
-          git show-ref --verify refs/tags/${{ inputs.ref_name }}
+          if git show-ref --verify refs/tags/${{ inputs.ref_name }} >/dev/null 2>&1; then
+            echo "TAG_EXISTS=true" >> $GITHUB_ENV
+          else
+            echo "TAG_EXISTS=false" >> $GITHUB_ENV
+          fi
+      - name: Check if ref is a tag (from deploy)
+        run: |
+          git show-ref --verify ${{ inputs.ref_name }}
+        if: env.TAG_EXISTS == 'false'
       - name: Java Setup
         uses: actions/setup-java@v3
         with:
