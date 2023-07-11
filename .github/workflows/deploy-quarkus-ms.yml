@@ -40,14 +40,23 @@ jobs:
         with:
           ref: ${{ inputs.ref_name }}
           persist-credentials: false
-      - name: Check valid tag
+      - name: Check if ref is a tag (from release)
+        id: verifica_tag
         run: |
-          if [[ "${{ startsWith(github.ref, 'refs/tags/') }}" == "true" ]]; then
+          if git show-ref --verify refs/tags/${{ inputs.ref_name }} >/dev/null 2>&1; then
+            echo "TAG_EXISTS=true" >> $GITHUB_ENV
+          else
+            echo "TAG_EXISTS=false" >> $GITHUB_ENV
+          fi
+      - name: Check if ref is a tag (from deploy)
+        run: |
+          if [[ "${{ startsWith(github.ref, 'refs/tags/v') }}" == "true" ]]; then
           echo "It's a valid tag"
           else
           echo "The tag is not valid!"
           exit 1 
           fi
+        if: env.TAG_EXISTS == 'false'
       - name: Java Setup
         uses: actions/setup-java@v3
         with:
