@@ -43,7 +43,7 @@ jobs:
       - name: Verifica tag o branch
         run: |
           if [[ "${{ startsWith(github.ref, 'refs/tags/') }}" == "true" ]]; then
-          echo "Il riferimento è un tag"
+          echo "It's a valid tag"
           else
           echo "The tag is not valid!"
           exit 1 
