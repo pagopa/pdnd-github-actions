@@ -40,13 +40,13 @@ jobs:
         with:
           ref: ${{ inputs.ref_name }}
           persist-credentials: false
-      #- name: Check default branch
-        #run: |
-          #default_branch=$(git remote show origin | awk '/HEAD branch/ {print $3}')
-          #if [ "${{ github.ref }}" != "refs/heads/$default_branch" ]; then
-            #echo "Error: Workflow must be triggered from default branch ($default_branch)." >&2
-            #exit 1
-          #fi
+      - name: Check default branch
+        run: |
+          default_branch=$(git remote show origin | awk '/HEAD branch/ {print $3}')
+          if [ "${{ github.ref }}" != "refs/heads/$default_branch" ]; then
+            echo "Error: Workflow must be triggered from default branch ($default_branch)." >&2
+            exit 1
+          fi
       #- name: Check if ref is a tag
        # run: |
         #  git show-ref --verify refs/tags/${{ inputs.ref_name }}
