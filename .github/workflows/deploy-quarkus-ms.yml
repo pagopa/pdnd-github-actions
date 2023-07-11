@@ -40,7 +40,7 @@ jobs:
         with:
           ref: ${{ inputs.ref_name }}
           persist-credentials: false
-      - name: Verifica tag o branch
+      - name: Check valid tag
         run: |
           if [[ "${{ startsWith(github.ref, 'refs/tags/') }}" == "true" ]]; then
           echo "It's a valid tag"
