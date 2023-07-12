@@ -24,7 +24,7 @@ jobs:
           base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
           name: ${{ github.event.repository.name }}
           namespace: prod-github-runners
-          image: gateway.private.pdnd.pagopa.it/pagopa/pdnd-aws-runner-microservices:v1.1.3
+          image: gateway.private.pdnd.pagopa.it/pagopa/pdnd-aws-runner-microservices:PA-376
           service_account: github-actions-sa
           docker_enabled: true
           image_pull_secret: regcred
@@ -79,6 +79,11 @@ jobs:
           mv src/main/kubernetes/kubernetes.yml.tmp src/main/kubernetes/kubernetes.yml
           cat src/main/resources/application.properties | envsubst '$HTTP_BASE_PATH' > src/main/resources/application.properties.tmp
           mv src/main/resources/application.properties.tmp src/main/resources/application.properties
+          
+      - name: setup-git-credentials
+        uses: de-vri-es/setup-git-credentials@v2.0.10
+        with:
+          credentials: https://pdnd-pagopa-github-bot:${{ secrets.PAT_BOT }}@github.com/
 
       - name: Image Release
         run: mvn package -B ${{ github.event.inputs.native == 'true' && '-Pnative -Dquarkus.native.container-build=true ' || '' }}
