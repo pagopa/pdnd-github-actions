@@ -13,7 +13,8 @@ The workflow is meant to be triggered on push of new tags and it will:
 
 ## Inputs
 
-|           |              |                                                                            |
-|-----------|--------------|----------------------------------------------------------------------------|
-| s3_bucket | **required** | Destination S3 bucket  (`pdnd-prod-dl-1-dataviz` or `pdnd-prod-dl-1-apps`) |
-| project   | **required** | Project name for destination S3 path                                       |
+|              |              |                                                                            |
+|--------------|--------------|----------------------------------------------------------------------------|
+| s3_bucket    | **required** | Destination S3 bucket  (`pdnd-prod-dl-1-dataviz` or `pdnd-prod-dl-1-apps`) |
+| project      | **required** | Project name for destination S3 path                                       |
+| build_folder | **required** | Output build folder (`dist` or `build`)                                    |
