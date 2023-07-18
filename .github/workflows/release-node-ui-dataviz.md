@@ -7,7 +7,7 @@ The workflow is meant to be triggered on push of new tags and it will:
     - `vx.x.x` for production
     - `vx.x.x-test`, `vx.x.x-beta`, `vx.x.x-dev` for test
 - build the application with npm
-- copy builded app to S3 Bucket
+- sync build to S3 Bucket
 - notify workflow outcome to Slack
 - destroy runner
 
