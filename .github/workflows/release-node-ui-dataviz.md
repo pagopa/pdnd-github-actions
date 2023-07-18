@@ -10,3 +10,10 @@ The workflow is meant to be triggered on push of new tags and it will:
 - copy builded app to S3 Bucket
 - notify workflow outcome to Slack
 - destroy runner
+
+## Inputs
+
+|           |              |                                                                            |
+|-----------|--------------|----------------------------------------------------------------------------|
+| s3_bucket | **required** | Destination S3 bucket  (`pdnd-prod-dl-1-dataviz` or `pdnd-prod-dl-1-apps`) |
+| project   | **required** | Project name for destination S3 path                                       |

@@ -1,6 +1,13 @@
 name: Release Node UI - Dataviz
 on:
   workflow_call:
+      inputs:
+        s3_bucket:
+          required: true
+          type: string
+        project:
+          required: true
+          type: string
 jobs:
     create_runner:
       name: Create runner
