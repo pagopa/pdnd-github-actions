@@ -19,7 +19,7 @@ jobs:
       steps:
         - name: Create Runner
           id: create_runner
-          uses: pagopa/pdnd-github-actions/deploy-gh-runner@c14225935feb8ea54b695c92b92fa5a3e68ae1de
+          uses: pagopa/pdnd-github-actions/deploy-gh-runner@a0527b8c763c1a469c41310412950638576a7866
           with:
             api_server: ${{ vars.K8S_API_SERVER }}
             access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
