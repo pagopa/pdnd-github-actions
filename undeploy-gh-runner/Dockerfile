@@ -5,6 +5,7 @@ ARG KUBECTL_VERSION=1.22.15
 COPY entrypoint.sh /runner/entrypoint.sh
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    libcurl4=7.81.0-1ubuntu1.10 \
     curl=7.81.0-1ubuntu1.10 \
     ca-certificates=20230311ubuntu0.22.04.1 \
     gnupg=2.2.27-3ubuntu2.1 \
