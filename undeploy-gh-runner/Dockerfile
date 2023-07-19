@@ -5,8 +5,8 @@ ARG KUBECTL_VERSION=1.22.15
 COPY entrypoint.sh /runner/entrypoint.sh
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libcurl4=7.81.0-1ubuntu1.10 \
-    curl=7.81.0-1ubuntu1.10 \
+    curl \
+    wget \
     ca-certificates=20230311ubuntu0.22.04.1 \
     gnupg=2.2.27-3ubuntu2.1 \
     gettext-base=0.21-4ubuntu4
@@ -17,7 +17,7 @@ RUN rm -f kubectl.sha256 && \
     mv kubectl /usr/local/bin && \
     chmod +x /usr/local/bin/kubectl && \ 
     chmod +x /runner/entrypoint.sh && \
-    curl -LO https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && \
+    wget https://github.com/mikefarah/yq/releases/download/v4.34.1/yq_linux_amd64 && \
     mv yq_linux_amd64 /usr/local/bin/yq && \
     chmod +x /usr/local/bin/yq
 
