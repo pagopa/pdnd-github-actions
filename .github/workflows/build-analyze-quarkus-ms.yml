@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Create Runner
         id: create_runner
-        uses: pagopa/pdnd-github-actions/deploy-gh-runner@v1.0.1
+        uses: pagopa/pdnd-github-actions/deploy-gh-runner@532e8ac6faf40b251dd33c1ccec1d8565349489e
         with:
           api_server: ${{ vars.K8S_API_SERVER }}
           access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
@@ -86,7 +86,7 @@ jobs:
     steps:
       - name: Destroy Runner
         id: destroy_runner
-        uses: pagopa/pdnd-github-actions/undeploy-gh-runner@v1.0.1
+        uses: pagopa/pdnd-github-actions/undeploy-gh-runner@v532e8ac6faf40b251dd33c1ccec1d8565349489e
         with:
           api_server: ${{ vars.K8S_API_SERVER }}
           access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
