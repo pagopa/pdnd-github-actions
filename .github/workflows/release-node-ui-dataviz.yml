@@ -53,10 +53,10 @@ jobs:
                 npm run build
                 [ -d dist ] && mv dist build
         - name: Set S3 url from input
-          if: ${{ inputs.s3_url }} != ""
+          if: inputs.s3_url != ''
           run: echo "{s3_url}=${{ inputs.s3_url }}" >> "$GITHUB_ENV"
         - name: Set S3 url from repo name
-          if: ${{ inputs.s3_url }} == ""
+          if: inputs.s3_url == ''
           run: |
                 REPO=${{ github.event.repository.name }}
                 S3_BUCKET="pdnd-prod-dl-1-dataviz"
