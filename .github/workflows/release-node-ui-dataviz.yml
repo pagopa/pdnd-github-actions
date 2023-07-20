@@ -5,6 +5,7 @@ on:
         s3_url:
           required: false
           type: string
+          description: 'S3 destination path in the format: s3://<bucket>/<project-name>/'
 jobs:
     create_runner:
       name: Create runner
@@ -51,10 +52,10 @@ jobs:
                 npm ci
                 npm run build
                 [ -d dist ] && mv dist build
-          # se s3 url input è null calcoliamo:
-            #s3 bucket è pdnd-prod-dl-1-dataviz per dataviz o pdnd-prod-dl-1-apps per apps-ui
-            #project è ${{ github.event.repository.name }} senza pdnd-dataviz e pdnd-apps-ui
-        - name: Set S3 url
+        - name: Set S3 url from input
+          if: ${{ inputs.s3_url }} != ""
+          run: echo "{s3_url}=${{ inputs.s3_url }}" >> "$GITHUB_ENV"
+        - name: Set S3 url from repo name
           if: ${{ inputs.s3_url }} == ""
           run: |
                 REPO=${{ github.event.repository.name }}
@@ -64,15 +65,14 @@ jobs:
                     S3_BUCKET="pdnd-prod-dl-1-apps"
                     PROJECT=${REPO#*pdnd-apps-ui-}
                 fi
-                echo "{s3_bucket}={$S3_BUCKET}" >> "$GITHUB_ENV"
-                echo "{project}={$PROJECT}" >> "$GITHUB_ENV"
+                echo "{s3_url}={s3://${$S3_BUCKET}/${PROJECT}/}" >> "$GITHUB_ENV"
         - name: Configure AWS Credentials
           uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355
           with:
             role-to-assume: arn:aws:iam::${{vars.AWS_IAM_ACCOUNT_ID}}:role/dataviz-sa-gh-assumable-role
             aws-region: eu-central-1
         - name: Deploy static site to S3 bucket
-          run: aws s3 sync ./build s3://${{env.s3_bucket}}/${{env.project}}/ --delete --exclude "data/*"
+          run: aws s3 sync ./build ${{env.s3_url}} --delete --exclude "data/*"
         - name: Slack Notification
           uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
           if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
