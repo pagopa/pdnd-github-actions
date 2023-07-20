@@ -54,7 +54,9 @@ jobs:
                 [ -d dist ] && mv dist build
         - name: Set S3 url from input
           if: inputs.s3_url != ''
-          run: echo "{s3_url}=${{ inputs.s3_url }}" >> "$GITHUB_ENV"
+          run: |
+                echo "{s3_url}=${{ inputs.s3_url }}" >> "$GITHUB_ENV"
+                echo ${{env.s3_url}}
         - name: Set S3 url from repo name
           if: inputs.s3_url == ''
           run: |
