@@ -2,14 +2,8 @@ name: Release Node UI - Dataviz
 on:
   workflow_call:
       inputs:
-        s3_bucket:
-          required: true
-          type: string
-        project:
-          required: true
-          type: string
-        build_folder:
-          required: true
+        s3_url:
+          required: false
           type: string
 jobs:
     create_runner:
@@ -56,13 +50,29 @@ jobs:
           run: |
                 npm ci
                 npm run build
+                [ -d dist ] && mv dist build
+          # se s3 url input è null calcoliamo:
+            #s3 bucket è pdnd-prod-dl-1-dataviz per dataviz o pdnd-prod-dl-1-apps per apps-ui
+            #project è ${{ github.event.repository.name }} senza pdnd-dataviz e pdnd-apps-ui
+        - name: Set S3 url
+          if: ${{ inputs.s3_url }} == ""
+          run: |
+                REPO=${{ github.event.repository.name }}
+                S3_BUCKET="pdnd-prod-dl-1-dataviz"
+                PROJECT=${REPO#*pdnd-dataviz-}
+                if echo $REPO | grep -iq "pdnd-apps-ui"; then
+                    S3_BUCKET="pdnd-prod-dl-1-apps"
+                    PROJECT=${REPO#*pdnd-apps-ui-}
+                fi
+                echo "{s3_bucket}={$S3_BUCKET}" >> "$GITHUB_ENV"
+                echo "{project}={$PROJECT}" >> "$GITHUB_ENV"
         - name: Configure AWS Credentials
           uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355
           with:
             role-to-assume: arn:aws:iam::${{vars.AWS_IAM_ACCOUNT_ID}}:role/dataviz-sa-gh-assumable-role
             aws-region: eu-central-1
         - name: Deploy static site to S3 bucket
-          run: aws s3 sync ./${{inputs.build_folder}} s3://${{inputs.s3_bucket}}/${{inputs.project}}/ --delete --exclude "data/*"
+          run: aws s3 sync ./build s3://${{env.s3_bucket}}/${{env.project}}/ --delete --exclude "data/*"
         - name: Slack Notification
           uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
           if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
