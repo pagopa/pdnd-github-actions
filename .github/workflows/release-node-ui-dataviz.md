@@ -18,3 +18,6 @@ The workflow is meant to be triggered on push of new tags and it will:
 | s3_bucket    | **required** | Destination S3 bucket  (`pdnd-prod-dl-1-dataviz` or `pdnd-prod-dl-1-apps`) |
 | project      | **required** | Project name for destination S3 path                                       |
 | build_folder | **required** | Output build folder (`dist` or `build`)                                    |
+
+## Github Actions docs
+- [Configure aws credentials](https://github.com/aws-actions/configure-aws-credentials#sample-iam-role-cloudformation-template)
