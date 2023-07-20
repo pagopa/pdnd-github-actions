@@ -21,3 +21,4 @@ The workflow is meant to be triggered on push of new tags and it will:
 
 ## Github Actions docs
 - [Configure aws credentials](https://github.com/aws-actions/configure-aws-credentials#sample-iam-role-cloudformation-template)
+- [Configuring openid connect in aws](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services)
