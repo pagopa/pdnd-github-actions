@@ -35,6 +35,9 @@ jobs:
     release:
       name: Release
       runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
+      permissions:
+            id-token: write
+            contents: read
       needs: create_runner
       steps:
         - uses: nowsprinting/check-version-format-action@447b28744b1b954470f128d1d86ff636164c87c1
