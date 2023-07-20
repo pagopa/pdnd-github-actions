@@ -50,7 +50,7 @@ jobs:
         - name: Set S3 url from input
           if: inputs.s3_url != ''
           run: |
-                echo "{s3_url}=${{ inputs.s3_url }}" >> "$GITHUB_ENV"
+                echo "s3_url=${{ inputs.s3_url }}" >> "$GITHUB_ENV"
                 echo ${{env.s3_url}}
         - name: Set S3 url from repo name
           if: inputs.s3_url == ''
@@ -62,7 +62,7 @@ jobs:
                     S3_BUCKET="pdnd-prod-dl-1-apps"
                     PROJECT=${REPO#*pdnd-apps-ui-}
                 fi
-                echo "{s3_url}={s3://$S3_BUCKET/$PROJECT/}" >> "$GITHUB_ENV"
+                echo "s3_url=s3://$S3_BUCKET/$PROJECT/" >> "$GITHUB_ENV"
         - name: Install dependencies & Build
           run: |
                 npm ci
