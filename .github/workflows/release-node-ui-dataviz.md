@@ -6,8 +6,8 @@ The workflow is meant to be triggered on push of new tags and it will:
 - check tag version format:
     - `vx.x.x` for production
     - `vx.x.x-test`, `vx.x.x-beta`, `vx.x.x-dev` for test
-- build the application with npm
 - set S3 url for destination path
+- build the application with npm
 - set aws credentials
 - sync build to S3 Bucket
 - notify workflow outcome to Slack
