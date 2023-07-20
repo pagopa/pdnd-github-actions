@@ -7,17 +7,17 @@ The workflow is meant to be triggered on push of new tags and it will:
     - `vx.x.x` for production
     - `vx.x.x-test`, `vx.x.x-beta`, `vx.x.x-dev` for test
 - build the application with npm
+- set S3 url for destination path
+- set aws credentials
 - sync build to S3 Bucket
 - notify workflow outcome to Slack
 - destroy runner
 
 ## Inputs
 
-|              |              |                                                                            |
-|--------------|--------------|----------------------------------------------------------------------------|
-| s3_bucket    | **required** | Destination S3 bucket  (`pdnd-prod-dl-1-dataviz` or `pdnd-prod-dl-1-apps`) |
-| project      | **required** | Project name for destination S3 path                                       |
-| build_folder | **required** | Output build folder (`dist` or `build`)                                    |
+|        |   |                                                                      |
+|--------|---|----------------------------------------------------------------------|
+| s3_url |   | S3 url for destination path (format `s3://<bucket>/<project-name>/`) |
 
 ## Github Actions docs
 - [Configure aws credentials](https://github.com/aws-actions/configure-aws-credentials#sample-iam-role-cloudformation-template)
