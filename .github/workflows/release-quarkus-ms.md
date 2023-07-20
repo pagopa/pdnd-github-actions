@@ -9,14 +9,14 @@ There are three worklows:
 
 ## build-analyze-quarkus-ms
 The workflow is meant to be triggered on push on the main branch (only for java file or pom.xml) and whenever a pull request is opened/synchronize/reopened:
-- create new runner
+- create new runner (dind rootless)
 - build the application, testing and check code with SonarCloud
 - destroy runner
 
 ----------------------------------------------------------------------------------------------------------------------
 ## release-quarkus-ms *
 This workflow is meant to be triggered manually whenever a new release of the microservice should be created. It will:
-- create new runner
+- create new runner  (dind rootless)
 - create a new tag which name follows the semantic versioning by checking the commit messages (See [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/**))
 - destroy runner
 
@@ -38,7 +38,7 @@ This workflow is meant to be triggered manually whenever a new release of the mi
 
 ## deploy-quarkus-ms
 This workflow is meant to be triggered manually or by release-quarkus-ms workflows. It will:
-- create new runner
+- create new runner  (dind rootless)
 - from a particolar tag deploy the just built container image as Deployment in Kubernetes
 - destroy runner
 
