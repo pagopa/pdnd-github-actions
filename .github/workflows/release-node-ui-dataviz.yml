@@ -1,0 +1,105 @@
+name: Release Node UI - Dataviz
+on:
+  workflow_call:
+      inputs:
+        s3_url:
+          required: false
+          type: string
+          description: 'S3 destination path in the format: s3://<bucket>/<project-name>/'
+jobs:
+    create_runner:
+      name: Create runner
+      runs-on: ubuntu-latest
+      if: github.ref_type == 'tag'
+      steps:
+        - name: Create Runner
+          id: create_runner
+          uses: pagopa/pdnd-github-actions/deploy-gh-runner@9abe465ba9d0661d214ee52a7f3fd257833641f2
+          with:
+            api_server: ${{ vars.K8S_API_SERVER }}
+            access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
+            base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
+            name: ${{ github.event.repository.name }}
+            namespace: prod-github-runners
+            image: gateway.private.pdnd.pagopa.it/pagopa/pdnd-aws-runner-nodejs:v1.0.1
+            service_account: github-actions-sa        
+            docker_enabled: true
+            image_pull_secret: regcred
+      outputs:
+        runner_label: ${{ steps.create_runner.outputs.runner_label }}
+    release:
+      name: Release
+      runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
+      # These permissions are needed to interact with GitHub's OIDC Token endpoint.
+      permissions:
+            id-token: write
+            contents: read
+      needs: create_runner
+      steps:
+        - uses: nowsprinting/check-version-format-action@447b28744b1b954470f128d1d86ff636164c87c1
+          id: version
+          with:
+            prefix: 'v'
+        - name: Check version
+          if: steps.version.outputs.is_valid == 'false'
+          run: |
+                echo "Version: ${{github.ref_name}} is not valid!"
+                exit 1
+        - name: Check out the repo
+          uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+        - name: Set S3 url from input
+          if: inputs.s3_url != ''
+          run: |
+                echo "s3_url=${{ inputs.s3_url }}" >> "$GITHUB_ENV"
+        - name: Set S3 url from repo name
+          if: inputs.s3_url == ''
+          run: |
+                REPO=${{ github.event.repository.name }}
+                S3_BUCKET="pdnd-prod-dl-1-dataviz"
+                PROJECT=${REPO#*pdnd-dataviz-}
+                if echo $REPO | grep -iq "pdnd-apps-ui"; then
+                    S3_BUCKET="pdnd-prod-dl-1-apps"
+                    PROJECT=${REPO#*pdnd-apps-ui-}
+                fi
+                echo "s3_url=s3://$S3_BUCKET/$PROJECT/" >> "$GITHUB_ENV"
+        - name: Install dependencies & Build
+          run: |
+                npm ci
+                npm run build
+                if [ -d dist ]; then 
+                  mv dist build 
+                fi
+        - name: Configure AWS Credentials
+          uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355
+          with:
+            role-to-assume: arn:aws:iam::${{vars.AWS_IAM_ACCOUNT_ID}}:role/dataviz-sa-gh-assumable-role
+            aws-region: eu-central-1
+        - name: Deploy static site to S3 bucket
+          run: aws s3 sync ./build ${{env.s3_url}} --delete --exclude "data/*"
+        - name: Slack Notification
+          uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
+          if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
+          with:
+            token: ${{ secrets.GITHUB_TOKEN }}
+            status: ${{ job.status }}
+            notification_title: "{workflow} has {status_message}"
+            message_format: "{emoji} *{workflow}* <https://github.com/{repo}/actions/runs/${{ github.run_id }}|${{github.ref_name}}> {status_message} in <{repo_url}|{repo}>"
+            footer: "<{repo_url}|Repo> | <{workflow_url}|Workflow>"
+            notify_when: "success,failure,warnings"
+          env:
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    destroy_runner:
+      name: Destroy runner
+      runs-on: ubuntu-latest
+      if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
+      needs: [create_runner, release]
+      steps:
+        - name: Destroy Runner
+          id: destroy_runner
+          uses: pagopa/pdnd-github-actions/undeploy-gh-runner@9abe465ba9d0661d214ee52a7f3fd257833641f2
+          with:
+            api_server: ${{ vars.K8S_API_SERVER }}
+            access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
+            base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
+            runner_label: ${{ needs.create_runner.outputs.runner_label }}
+            namespace: prod-github-runners
