@@ -63,6 +63,8 @@ jobs:
                 fi
                 echo "s3_url=s3://$S3_BUCKET/$PROJECT/" >> "$GITHUB_ENV"
         - name: Install dependencies & Build
+          env:
+            REACT_APP_AIRFLOW_CRED: ${{ secrets.AIRFLOW_USERNAME }}:${{ secrets.AIRFLOW_PASSWORD }}
           run: |
                 npm ci
                 npm run build
