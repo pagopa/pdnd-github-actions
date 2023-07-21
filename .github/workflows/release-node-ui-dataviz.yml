@@ -65,11 +65,10 @@ jobs:
         - name: Install dependencies & Build
           run: |
                 npm ci
-                npm run build --verbose
-                ls -la
-                df -h
-                sleep 300
-                #[ -d dist ] && mv dist build
+                npm run build
+                if [ -d dist ]; then 
+                  mv dist build 
+                fi
         - name: Configure AWS Credentials
           uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355
           with:
