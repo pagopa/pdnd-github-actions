@@ -74,30 +74,30 @@ jobs:
             aws-region: eu-central-1
         - name: Deploy static site to S3 bucket
           run: aws s3 sync ./build ${{env.s3_url}} --delete --exclude "data/*"
-        - name: Slack Notification
-          uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
-          if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
-          with:
-            token: ${{ secrets.GITHUB_TOKEN }}
-            status: ${{ job.status }}
-            notification_title: "{workflow} has {status_message}"
-            message_format: "{emoji} *{workflow}* <https://github.com/{repo}/actions/runs/${{ github.run_id }}|${{github.ref_name}}> {status_message} in <{repo_url}|{repo}>"
-            footer: "<{repo_url}|Repo> | <{workflow_url}|Workflow>"
-            notify_when: "success,failure,warnings"
-          env:
-            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-    destroy_runner:
-      name: Destroy runner
-      runs-on: ubuntu-latest
-      if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
-      needs: [create_runner, release]
-      steps:
-        - name: Destroy Runner
-          id: destroy_runner
-          uses: pagopa/pdnd-github-actions/undeploy-gh-runner@9abe465ba9d0661d214ee52a7f3fd257833641f2
-          with:
-            api_server: ${{ vars.K8S_API_SERVER }}
-            access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
-            base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
-            runner_label: ${{ needs.create_runner.outputs.runner_label }}
-            namespace: prod-github-runners
+    #    - name: Slack Notification
+    #      uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
+    #      if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
+    #      with:
+    #        token: ${{ secrets.GITHUB_TOKEN }}
+    #        status: ${{ job.status }}
+    #        notification_title: "{workflow} has {status_message}"
+    #        message_format: "{emoji} *{workflow}* <https://github.com/{repo}/actions/runs/${{ github.run_id }}|${{github.ref_name}}> {status_message} in <{repo_url}|{repo}>"
+    #        footer: "<{repo_url}|Repo> | <{workflow_url}|Workflow>"
+    #        notify_when: "success,failure,warnings"
+    #      env:
+    #        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    #destroy_runner:
+    #  name: Destroy runner
+    #  runs-on: ubuntu-latest
+    #  if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
+    #  needs: [create_runner, release]
+    #  steps:
+    #    - name: Destroy Runner
+    #      id: destroy_runner
+    #      uses: pagopa/pdnd-github-actions/undeploy-gh-runner@9abe465ba9d0661d214ee52a7f3fd257833641f2
+    #      with:
+    #        api_server: ${{ vars.K8S_API_SERVER }}
+    #        access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
+    #        base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
+    #        runner_label: ${{ needs.create_runner.outputs.runner_label }}
+    #        namespace: prod-github-runners
