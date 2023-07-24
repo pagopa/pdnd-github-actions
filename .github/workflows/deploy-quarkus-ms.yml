@@ -17,14 +17,14 @@ jobs:
     steps:
       - name: Create Runner
         id: create_runner
-        uses: pagopa/pdnd-github-actions/deploy-gh-runner@9abe465ba9d0661d214ee52a7f3fd257833641f2
+        uses: pagopa/pdnd-github-actions/deploy-gh-runner@f2324991919536414cf6ecef62d1dbaeadea584e
         with:
           api_server: ${{ vars.K8S_API_SERVER }}
           access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
           base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
           name: ${{ github.event.repository.name }}
           namespace: prod-github-runners
-          image: gateway.private.pdnd.pagopa.it/pagopa/pdnd-aws-runner-microservices:v1.1.3
+          image: gateway.private.pdnd.pagopa.it/pagopa/pdnd-aws-runner-microservices:v1.2.0
           service_account: github-actions-sa
           docker_enabled: true
           image_pull_secret: regcred
@@ -144,7 +144,7 @@ jobs:
     steps:
       - name: Destroy Runner
         id: destroy_runner
-        uses: pagopa/pdnd-github-actions/undeploy-gh-runner@v9abe465ba9d0661d214ee52a7f3fd257833641f2
+        uses: pagopa/pdnd-github-actions/undeploy-gh-runner@f2324991919536414cf6ecef62d1dbaeadea584e
         with:
           api_server: ${{ vars.K8S_API_SERVER }}
           access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
