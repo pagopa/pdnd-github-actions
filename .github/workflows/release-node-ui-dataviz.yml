@@ -1,22 +1,11 @@
-name: Release Airflow Pipeline
+name: Release Node UI - Dataviz
 on:
   workflow_call:
-    inputs:
-        airflow_volume_claim:
+      inputs:
+        s3_url:
           required: false
-          default: airflow-dag-volume
           type: string
-        airflow_volume_mount_path:
-          required: false
-          default: /mnt/efs
-          type: string
-        airflow_env:
-          required: true
-          type: string
-        run_docker_build:
-          required: false
-          default: true
-          type: boolean
+          description: 'S3 destination path in the format: s3://<bucket>/<project-name>/'
 jobs:
     create_runner:
       name: Create runner
@@ -32,17 +21,19 @@ jobs:
             base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
             name: ${{ github.event.repository.name }}
             namespace: prod-github-runners
-            image: gateway.private.pdnd.pagopa.it/pagopa/pdnd-aws-runner-python:v1.0.0
+            image: gateway.private.pdnd.pagopa.it/pagopa/pdnd-aws-runner-nodejs:v1.0.1
             service_account: github-actions-sa        
             docker_enabled: true
             image_pull_secret: regcred
-            volume_claim: ${{ inputs.airflow_volume_claim }}
-            volume_mount_path: ${{ inputs.airflow_volume_mount_path }}
       outputs:
         runner_label: ${{ steps.create_runner.outputs.runner_label }}
     release:
       name: Release
       runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
+      # These permissions are needed to interact with GitHub's OIDC Token endpoint.
+      permissions:
+            id-token: write
+            contents: read
       needs: create_runner
       steps:
         - uses: nowsprinting/check-version-format-action@447b28744b1b954470f128d1d86ff636164c87c1
@@ -56,41 +47,37 @@ jobs:
                 exit 1
         - name: Check out the repo
           uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-        - name: Set up QEMU
-          uses: docker/setup-qemu-action@2b82ce82d56a2a04d2637cd93a637ae1b359c0a7
-          if: ${{ inputs.run_docker_build }}
-        - name: Set up Docker Buildx
-          id: buildx
-          uses: docker/setup-buildx-action@ecf95283f03858871ff00b787d79c419715afc34
-          if: ${{ inputs.run_docker_build }}
-        - name: Docker Login
-          uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
-          if: ${{ inputs.run_docker_build }}
+        - name: Set S3 url from input
+          if: inputs.s3_url != ''
+          run: |
+                echo "s3_url=${{ inputs.s3_url }}" >> "$GITHUB_ENV"
+        - name: Set S3 url from repo name
+          if: inputs.s3_url == ''
+          run: |
+                REPO=${{ github.event.repository.name }}
+                S3_BUCKET="pdnd-prod-dl-1-dataviz"
+                PROJECT=${REPO#*pdnd-dataviz-}
+                if echo $REPO | grep -iq "pdnd-apps-ui"; then
+                    S3_BUCKET="pdnd-prod-dl-1-apps"
+                    PROJECT=${REPO#*pdnd-apps-ui-}
+                fi
+                echo "s3_url=s3://$S3_BUCKET/$PROJECT/" >> "$GITHUB_ENV"
+        - name: Install dependencies & Build
+          env:
+            REACT_APP_AIRFLOW_CRED: ${{ secrets.AIRFLOW_USERNAME }}:${{ secrets.AIRFLOW_PASSWORD }}
+          run: |
+                npm ci
+                npm run build
+                if [ -d dist ]; then 
+                  mv dist build 
+                fi
+        - name: Configure AWS Credentials
+          uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355
           with:
-            registry: ${{ vars.IMAGE_REGISTRY_URL }}
-            username: ${{ secrets.NEXUS_USERNAME }}
-            password: ${{ secrets.NEXUS_PASSWORD }}
-        - name: Docker Build and Push
-          uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
-          if: ${{ inputs.run_docker_build }}
-          with:
-            build-args: |
-              nexus=${{ vars.IMAGE_REGISTRY_URL }}
-            context: .
-            file: ./Dockerfile
-            network: host
-            push: true
-            provenance: false
-            tags: ${{ vars.IMAGE_REGISTRY_URL }}/${{ github.event.repository.name }}-image:${{ steps.version.outputs.full }}
-        - name: Deploy Airflow dags
-          uses: pagopa/pdnd-github-actions/deploy-airflow-dags@1d69db82abb736b2301a636a6de243c9bb4505c3
-          with:
-            project: ${{ github.event.repository.name }}
-            version: ${{ steps.version.outputs.full }}
-            airflow_api_url: "${{ vars.PDND_GATEWAY_URL }}/airflow-${{ inputs.airflow_env }}/api/v1"
-            airflow_username: ${{ secrets.AIRFLOW_USERNAME }}
-            airflow_password: ${{ secrets.AIRFLOW_PASSWORD }}
-            airflow_dags_volume_path: ${{ inputs.airflow_volume_mount_path }}/airflow-${{ inputs.airflow_env }}-dags
+            role-to-assume: arn:aws:iam::${{vars.AWS_IAM_ACCOUNT_ID}}:role/dataviz-sa-gh-assumable-role
+            aws-region: eu-central-1
+        - name: Deploy static site to S3 bucket
+          run: aws s3 sync ./build ${{env.s3_url}} --delete --exclude "data/*"
         - name: Slack Notification
           uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
           if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
