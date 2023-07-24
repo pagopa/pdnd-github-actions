@@ -24,7 +24,7 @@ jobs:
           base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
           name: ${{ github.event.repository.name }}
           namespace: prod-github-runners
-          image: gateway.private.pdnd.pagopa.it/pagopa/pdnd-aws-runner-microservices:PA-376
+          image: gateway.private.pdnd.pagopa.it/pagopa/pdnd-aws-runner-microservices:v1.2.0
           service_account: github-actions-sa
           docker_enabled: true
           image_pull_secret: regcred
