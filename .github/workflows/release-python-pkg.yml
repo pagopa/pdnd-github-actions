@@ -1,0 +1,77 @@
+name: Release
+on:
+  workflow_call:
+jobs:
+    create_runner:
+      name: Create runner
+      runs-on: ubuntu-latest
+      if: github.ref_type == 'tag'
+      steps:
+        - name: Create Runner
+          id: create_runner
+          uses: pagopa/pdnd-github-actions/deploy-gh-runner@9abe465ba9d0661d214ee52a7f3fd257833641f2
+          with:
+            api_server: ${{ vars.K8S_API_SERVER }}
+            access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
+            base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
+            name: ${{ github.event.repository.name }}
+            namespace: prod-github-runners
+            image: gateway.private.pdnd.pagopa.it/pagopa/pdnd-aws-runner-python:v1.1.0
+            service_account: github-actions-sa        
+            docker_enabled: true
+            image_pull_secret: regcred
+      outputs:
+        runner_label: ${{ steps.create_runner.outputs.runner_label }}
+    release:
+      name: Release
+      runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
+      needs: create_runner
+      steps:
+        - uses: nowsprinting/check-version-format-action@447b28744b1b954470f128d1d86ff636164c87c1
+          id: version
+          with:
+            prefix: 'v'
+        - name: Check version
+          if: steps.version.outputs.is_valid == 'false'
+          run: |
+                echo "Version: ${{github.ref_name}} is not valid!"
+                exit 1
+        - name: Check out the repo
+          uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+        - name: Build pkg
+          run: |
+                echo '__version__="'${{ steps.version.outputs.full }}'"' > _version.py
+                python3 setup.py sdist bdist_wheel
+        - name: Publish pkg
+          uses: pypa/gh-action-pypi-publish@f8c70e705ffc13c3b4d1221169b84f12a75d6ca8
+          with:
+            user: ${{ secrets.NEXUS_USERNAME }}
+            password: ${{ secrets.NEXUS_PASSWORD }}
+            repository-url: https://${{ vars.IMAGE_REGISTRY_URL }}/nexus/repository/pypi/
+        - name: Slack Notification
+          uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
+          if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
+          with:
+            token: ${{ secrets.GITHUB_TOKEN }}
+            status: ${{ job.status }}
+            notification_title: "{workflow} has {status_message}"
+            message_format: "{emoji} *{workflow}* <https://github.com/{repo}/actions/runs/${{ github.run_id }}|${{github.ref_name}}> {status_message} in <{repo_url}|{repo}>"
+            footer: "<{repo_url}|Repo> | <{workflow_url}|Workflow>"
+            notify_when: "success,failure,warnings"
+          env:
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    destroy_runner:
+      name: Destroy runner
+      runs-on: ubuntu-latest
+      if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
+      needs: [create_runner, release]
+      steps:
+        - name: Destroy Runner
+          id: destroy_runner
+          uses: pagopa/pdnd-github-actions/undeploy-gh-runner@9abe465ba9d0661d214ee52a7f3fd257833641f2
+          with:
+            api_server: ${{ vars.K8S_API_SERVER }}
+            access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
+            base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
+            runner_label: ${{ needs.create_runner.outputs.runner_label }}
+            namespace: prod-github-runners
