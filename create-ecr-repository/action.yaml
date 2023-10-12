@@ -1,0 +1,43 @@
+name: 'AWS ECR create repository'
+description: 'Create repository in AWS ECR if not exist and set lifecycle policy'
+branding:
+  icon: 'cloud'
+  color: 'orange'
+inputs:
+  repositoryName:
+    description: 'Repository name'
+    required: true
+  imageTagMutability:
+    description: 'Repositary imageTagMutability MUTABLE|UNMUTABLE. Default MUTABLE'
+    required: true
+    default: 'MUTABLE'
+  scanOnPush:
+    description: 'Repositary scanOnPush True|False. Default True'
+    required: true
+    default: 'True'
+  tags:
+    description: 'Repositary tags list. Default no tags set'
+  tagStatus:
+    description: 'Lifecycle tagStatus can be tagged|untagged|any. Default any'
+    required: true
+    default: 'any'
+  countType:
+    description: 'Lifecycle countType can be imageCountMoreThan|sinceImagePushed. Default imageCountMoreThan'
+    required: true
+    default: 'imageCountMoreThan'
+  countNumber:
+    description: 'Lifecycle countNumber. Default 30'
+    required: true
+    default: '30'
+
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - ${{ inputs.repositoryName }}
+    - ${{ inputs.imageTagMutability }}
+    - ${{ inputs.scanOnPush }}
+    - ${{ inputs.tags }}
+    - ${{ inputs.tagStatus }}
+    - ${{ inputs.countType }}
+    - ${{ inputs.countNumber }}
