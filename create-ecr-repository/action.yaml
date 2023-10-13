@@ -11,10 +11,6 @@ inputs:
     description: 'Repositary imageTagMutability MUTABLE|UNMUTABLE. Default MUTABLE'
     required: true
     default: 'MUTABLE'
-  scanOnPush:
-    description: 'Repositary scanOnPush True|False. Default True'
-    required: true
-    default: 'True'
   tags:
     description: 'Repositary tags list. Default no tags set'
   tagStatus:
@@ -36,7 +32,6 @@ runs:
   args:
     - ${{ inputs.repositoryName }}
     - ${{ inputs.imageTagMutability }}
-    - ${{ inputs.scanOnPush }}
     - ${{ inputs.tags }}
     - ${{ inputs.tagStatus }}
     - ${{ inputs.countType }}

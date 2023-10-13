@@ -28,7 +28,7 @@ client = boto3.client('ecr')
 def str2bool(v):
   return v.lower() in ("true","1")
 
-def create_ecr_repository(repositoryName, imageTagMutability, scanOnPush, encryptionConfiguration={}, tags=[]):
+def create_ecr_repository(repositoryName, imageTagMutability , encryptionConfiguration={}, tags=[]):
     response = client.create_repository(
         repositoryName=repositoryName,
         tags=tags,
@@ -87,7 +87,7 @@ encryptionConfiguration = {
 
 if check_repository_exist(repositoryName=repositoryName) != True:
 
-    ecr = create_ecr_repository(repositoryName=repositoryName, imageTagMutability=imageTagMutability, scanOnPush=scanOnPush,
+    ecr = create_ecr_repository(repositoryName=repositoryName, imageTagMutability=imageTagMutability,
                           encryptionConfiguration=encryptionConfiguration, tags=tags)
     print("Created repository: %s" % ecr['repository']['repositoryName'])
     print("RepositoryUri: %s" % ecr['repository']['repositoryUri'])
