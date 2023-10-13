@@ -46,6 +46,8 @@ def check_repository_exist(repositoryName):
     )
     except:
         return False
+    print("repositories found ")
+    print (response['repositories'])
     if len(response['repositories']) > 0:
         return True
 
