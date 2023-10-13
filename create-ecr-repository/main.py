@@ -63,7 +63,7 @@ def lifecycle_policy(repositoryName, lifecyclePolicyText):
         print(traceback.format_exc())
         return False
 
-lifecyclePolicy = {
+lifecyclePolicy = [{
     "rules": [
         {
             "rulePriority": 10,
@@ -79,7 +79,7 @@ lifecyclePolicy = {
             }
         }
     ]
-}
+}]
 
 
 
