@@ -10,7 +10,7 @@ countNumber = os.getenv("countNumber", default=30)
 repositoryName = os.environ["repositoryName"]
 imageTagMutability = os.getenv("imageTagMutability", default="MUTABLE")
 tags = os.getenv("tags", default=[])
-tagPrefixList = os.getenv("tagPrefixList", default="sha")
+tagPrefixList = os.getenv("tagPrefixList", default=["v"])
 
 ### Try validate variables
 if tags == "":
@@ -63,7 +63,7 @@ def lifecycle_policy(repositoryName, lifecyclePolicyText):
         print(traceback.format_exc())
         return False
 
-lifecyclePolicy = [{
+lifecyclePolicy = {
     "rules": [
         {
             "rulePriority": 10,
@@ -79,7 +79,7 @@ lifecyclePolicy = [{
             }
         }
     ]
-}]
+}
 
 
 
