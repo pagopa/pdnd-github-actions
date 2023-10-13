@@ -2,6 +2,7 @@ import boto3
 import os
 import json
 import ast
+import traceback
 
 tagStatus = os.getenv("tagStatus", default="tagged")
 countType = os.getenv("countType", default="imageCountMoreThan")
@@ -45,9 +46,8 @@ def check_repository_exist(repositoryName):
         ],
     )
     except:
+        print(traceback.format_exc())
         return False
-    print("repositories found ")
-    print (response['repositories'])
     if len(response['repositories']) > 0:
         return True
 
@@ -60,6 +60,7 @@ def lifecycle_policy(repositoryName, lifecyclePolicyText):
         )
         return True
     except:
+        print(traceback.format_exc())
         return False
 
 lifecyclePolicy = {
