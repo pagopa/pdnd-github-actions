@@ -1,0 +1,94 @@
+name: "deploy-gh-runner"
+description: Spawn GitHub Runners on Kubernetes through the Actions Runner Controller
+branding:
+  icon: package
+  color: blue
+inputs:
+  name:
+    required: true
+    description: "Runner name"
+  cluster_name:
+    required: true
+    description: "Name of the eks cluster to deploy on."
+  aws_runner_deploy_role:
+    required: true
+    description: "Name of the aws role to use to deploy runners"
+  aws_region:
+    required: false
+    default: "eu-central-1"
+    description: "AWS region of the eks cluster"
+  namespace:
+    required: false
+    default: default
+    description: "Namespace where the runner should be deployed"
+  image:
+    required: false
+    default: docker:dind
+    description: "Image the runner should run on"
+  repository:
+    required: false
+    default: ${{ github.repository }}
+    description: "Repository the runner is deployed for"
+  service_account:
+    required: true
+    description: "Kubernetes ServiceAccount for the runner"
+  docker_enabled:
+    required: false
+    default: "false"
+    description: "Flag to choose whether Docker should be enabled in the runner"
+  image_pull_secret:
+    required: false
+    description: "Kubernetes Secret name to pull the Runner image"
+  volume_claim:
+    required: false
+    default: "null"
+    description: "Kubernetes PersistentVolumeClaim to associate with the runner"
+  volume_mount_path:
+    required: false
+    default: "/mnt"
+    description: "Path where the PersistentVolumeClaim should be mounted inside the runner"
+outputs:
+  runner_label:
+    description: "The runner generated label to use when deleting it"
+    value: ${{ steps.setup-k8s-manifest.outputs.runner_label }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.aws_runner_deploy_role }}
+        aws-region: ${{ inputs.aws_region }}
+    - name: setup kubectl
+      run: |
+        aws eks update-kubeconfig --name "${{ inputs.cluster_name }}"  --role-arn "${{inputs.aws_runner_deploy_role}}" --region ${{ inputs.aws_region }}
+      shell: bash
+    - id: setup-k8s-manifest
+      shell: bash
+      run: |
+        TIMESTAMP=$(date +%Y%m%d%H%M%S) 
+        RUNNER_NAME=${{ inputs.name }}
+        export RUNNER_NAMESPACE=${{ inputs.namespace }}
+        export RUNNER_IMAGE=${{ inputs.image }}
+        export RUNNER_REPOSITORY=${{ inputs.repository }}
+        export RUNNER_SERVICE_ACCOUNT=${{ inputs.service_account }}
+        export RUNNER_DOCKER_ENABLED="${{ inputs.docker_enabled }}"
+        RUNNER_IMAGE_PULL_SECRET="${{ inputs.image_pull_secret }}"
+        RUNNER_VOLUME_CLAIM="${{ inputs.volume_claim }}"
+        RUNNER_VOLUME_MOUNT_PATH="${{ inputs.volume_mount_path }}"
+        export RUNNER_LABEL="${{ inputs.name }}-$TIMESTAMP"
+
+        if [[ "$RUNNER_IMAGE_PULL_SECRET" != "null" ]]; then
+            TEMPLATE=$(echo "$TEMPLATE" | yq ".spec.template.spec.imagePullSecrets[0].name = \"$RUNNER_IMAGE_PULL_SECRET\"")
+        fi
+
+        if [[ "$RUNNER_VOLUME_CLAIM" != "null" ]]; then
+            TEMPLATE=$(echo "$TEMPLATE" | yq ".spec.template.spec.volumes[0].name = \"$RUNNER_VOLUME_CLAIM\"")
+            TEMPLATE=$(echo "$TEMPLATE" | yq ".spec.template.spec.volumes[0].persistentVolumeClaim.claimName = \"$RUNNER_VOLUME_CLAIM\"")
+            TEMPLATE=$(echo "$TEMPLATE" | yq ".spec.template.spec.volumeMounts[0].name = \"$RUNNER_VOLUME_CLAIM\"")
+            TEMPLATE=$(echo "$TEMPLATE" | yq ".spec.template.spec.volumeMounts[0].mountPath = \"$RUNNER_VOLUME_MOUNT_PATH\"")
+        fi
+        echo "$TEMPLATE" > runner.yaml
+        kubectl apply -f runner.yaml --v=8
+        echo "runner_label=$RUNNER_LABEL" >> "${GITHUB_OUTPUT}"
