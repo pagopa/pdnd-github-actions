@@ -1,5 +1,6 @@
 # aws-ecr-action
-This is AWS ECR action to create repository if not exist 
+This is AWS ECR action to create repository if not exist. <br>
+When executed in a container using a irsa role an env var named AWS_WEB_IDENTITY_TOKEN must be set beforehand; the var is used to configure the boto3 client and must contain the aws jwt token.
 
 ## Features:
  - Create repository in ECR
@@ -11,10 +12,9 @@ This is AWS ECR action to create repository if not exist
 For auth in AWS must be used action 'Configure AWS Credentials For GitHub Actions' 
 ```yaml
       - name: Create AWS ECR repository
-        uses: uspacy/aws-ecr-action@v1
+        uses: pagopa/pdnd-github-actions/aws-ecr-action@v1
         with:
           repositoryName: ${{ github.event.repository.name }}
-          
           
 ```
 
