@@ -79,6 +79,7 @@ runs:
         RUNNER_VOLUME_MOUNT_PATH="${{ inputs.volume_mount_path }}"
         export RUNNER_LABEL="${{ inputs.name }}-$TIMESTAMP"
 
+        TEMPLATE=$(envsubst < /runner/template.yaml)
         if [[ "$RUNNER_IMAGE_PULL_SECRET" != "null" ]]; then
             TEMPLATE=$(echo "$TEMPLATE" | yq ".spec.template.spec.imagePullSecrets[0].name = \"$RUNNER_IMAGE_PULL_SECRET\"")
         fi
@@ -92,5 +93,5 @@ runs:
         echo "$TEMPLATE" > runner.yaml
         echo "runner..."
         cat runner.yaml 
-        #kubectl apply -f runner.yaml --v=8
+        kubectl apply -f runner.yaml --v=8
         echo "runner_label=$RUNNER_LABEL" >> "${GITHUB_OUTPUT}"
