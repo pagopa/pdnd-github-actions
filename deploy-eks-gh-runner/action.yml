@@ -62,12 +62,8 @@ runs:
         aws-region: ${{ inputs.aws_region }}
     - name: setup kubectl
       run: |
-        aws eks update-kubeconfig --name "${{ inputs.cluster_name }}" --region ${{ inputs.aws_region }}
-      shell: bash
-    - name: test
-      run: |
-        kubectl get pods -n prod-github-runners
-
+        aws eks update-kubeconfig --name "${{ inputs.cluster_name }}" --region ${{ inputs.aws_region }} --role-arn arn:aws:iam::688071769384:role/pdnd-cicd-cluster-20231011151736626500000005
+        kubectl get pods -n prod-github-runners --v=8
       shell: bash  
     - id: setup-k8s-manifest
       shell: bash
