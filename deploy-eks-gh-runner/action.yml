@@ -63,7 +63,6 @@ runs:
     - name: setup kubectl
       run: |
         aws eks update-kubeconfig --name "${{ inputs.cluster_name }}" --region ${{ inputs.aws_region }}
-        kubectl get pods -n prod-github-runners --v=8
       shell: bash  
     - id: setup-k8s-manifest
       shell: bash
@@ -91,5 +90,7 @@ runs:
             TEMPLATE=$(echo "$TEMPLATE" | yq ".spec.template.spec.volumeMounts[0].mountPath = \"$RUNNER_VOLUME_MOUNT_PATH\"")
         fi
         echo "$TEMPLATE" > runner.yaml
-        kubectl apply -f runner.yaml --v=8
+        echo "runner..."
+        cat runner.yaml 
+        #kubectl apply -f runner.yaml --v=8
         echo "runner_label=$RUNNER_LABEL" >> "${GITHUB_OUTPUT}"
