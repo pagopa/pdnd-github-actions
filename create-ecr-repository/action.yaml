@@ -16,7 +16,7 @@ inputs:
   tagStatus:
     description: 'Lifecycle tagStatus can be tagged|untagged|any. Default any'
     required: true
-    default: 'any'
+    default: 'tagged'
   countType:
     description: 'Lifecycle countType can be imageCountMoreThan|sinceImagePushed. Default imageCountMoreThan'
     required: true
