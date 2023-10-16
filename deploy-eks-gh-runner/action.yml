@@ -79,7 +79,7 @@ runs:
         RUNNER_VOLUME_MOUNT_PATH="${{ inputs.volume_mount_path }}"
         export RUNNER_LABEL="${{ inputs.name }}-$TIMESTAMP"
 
-        TEMPLATE=$(envsubst < /runner/template.yaml)
+        TEMPLATE=$(envsubst < ./template.yaml)
         if [[ "$RUNNER_IMAGE_PULL_SECRET" != "null" ]]; then
             TEMPLATE=$(echo "$TEMPLATE" | yq ".spec.template.spec.imagePullSecrets[0].name = \"$RUNNER_IMAGE_PULL_SECRET\"")
         fi
