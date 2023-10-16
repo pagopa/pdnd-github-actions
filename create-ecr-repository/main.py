@@ -46,7 +46,6 @@ def check_repository_exist(repositoryName):
         ],
     )
     except:
-        print(traceback.format_exc())
         return False
     if len(response['repositories']) > 0:
         return True
