@@ -1,5 +1,6 @@
-# deploy-gh-runner
+# deploy-eks-gh-runner
 This action is meant to spawn a runner for a single repository through the [Actions Runner Controller](https://github.com/actions/actions-runner-controller). It contacts directly your Kubernetes cluster in order to request a new `RunnerDeployment` resource creation.
+In order to apply the runner in your eks cluster an AWS roles with `eks:DescribeCluster` permission is needed, the role must also be assumable by a the github public runner.
 
 The purpose of this action is to avoid granting a service user the Admin rights on an entire organization and spawn self-hosted runners according to the build needs.
 
@@ -14,14 +15,18 @@ on:
 jobs:
   create_runner:
     runs-on: ubuntu-latest
+    # These permissions are needed to interact with GitHub's OIDC Token endpoint.
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Create Runner
         id: create_runner
-        uses: pagopa/pdnd-github-actions/deploy-gh-runner@version
+        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@version
         with:
-          api_server: ${{ secrets.API_SERVER }}
-          access_token: ${{ secrets.ACCESS_TOKEN }}
-          base64_encoded_ca_crt: ${{ secrets.CA_CRT }}
+          cluster_name: pdnd-cicd
+          aws_runner_deploy_role: gh-irsa-role
+          aws_region: "eu-central-1"
           name: example-runner
           namespace: example-namespace
           image: example-image:latest
@@ -45,9 +50,9 @@ Any following job that should be executed on the just spawned runner should indi
 You can customize the following parameters:
 | Parameter | Requirement | Description |
 | --- | --- | --- |
-| api_server | **required** | address of the public Kubernetes API Server.
-| access_token | **required** | access token of the chosen Service Account used to spawn runners.
-| base64_encoded_ca_crt | **required** | CA certificate used to contact safely the Kubernetes API Server.
+| cluster_name | **required** | Name of your eks cluster to deploy the runners on.
+| aws_runner_deploy_role | **required** | ARN of the aws role able to deploy the runner on eks,must have the `eks:DescribeCluster` permission and must be assumable by a github public runner .
+| aws_region | **optional** | AWS region of the cluster
 | name | **required** | Runner base name. Used to generate the `runner_label` output, which uniquely identifies a runner.
 | namespace | **optional**| Namespace where the runner should be created. Defaults to `default`.
 | image | **optional** | Base image the runner will use to run the workflows. Defaults to `docker:dind`.
