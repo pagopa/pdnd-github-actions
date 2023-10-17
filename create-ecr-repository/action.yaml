@@ -26,13 +26,23 @@ inputs:
     required: true
     default: '30'
 
+
 runs:
-  using: 'docker'
-  image: 'Dockerfile'
-  args:
-    - ${{ inputs.repositoryName }}
-    - ${{ inputs.imageTagMutability }}
-    - ${{ inputs.tags }}
-    - ${{ inputs.tagStatus }}
-    - ${{ inputs.countType }}
-    - ${{ inputs.countNumber }}
+  using: "composite"
+  steps:
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        cache: 'pip'
+    - run: pip install -r ${GITHUB_ACTION_PATH}/requirements.txt
+    - name: setup kubectl
+      run: |
+        ${GITHUB_ACTION_PATH}/entrypoint.sh
+      shell: bash
+      env:
+        INPUT_REPOSITORYNAME: ${{inputs.repositoryName}}
+        INPUT_IMAGETAGMUTABILITY:  ${{inputs.imageTagMutability}}
+        INPUT_TAGS:  ${{inputs.tags}}
+        INPUT_TAGSTATUS: ${{inputs.tagStatus}}
+        INPUT_COUNTNUMBER: ${{inputs.countNumber}}
+        INPUT_COUNTTYPE: ${{inputs.countType}}
