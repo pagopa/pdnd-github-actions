@@ -25,19 +25,21 @@ inputs:
     description: 'Lifecycle countNumber. Default 30'
     required: true
     default: '30'
-
+  tagsPrefix:
+    description: 'tags prefix'
+    type: array
+    required: false
+    default: '["v"]'
 
 runs:
   using: "composite"
   steps:
-    - uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-        cache: 'pip'
-    - run: pip install -r ${GITHUB_ACTION_PATH}/requirements.txt
-    - name: setup kubectl
+    - name: Install requirements    
+      run: pip install boto3==1.28.64
+      shell: bash
+    - name: Create Repository
       run: |
-        ${GITHUB_ACTION_PATH}/entrypoint.sh
+        python3 ${{ github.action_path }}/main.py
       shell: bash
       env:
         INPUT_REPOSITORYNAME: ${{inputs.repositoryName}}
@@ -46,3 +48,4 @@ runs:
         INPUT_TAGSTATUS: ${{inputs.tagStatus}}
         INPUT_COUNTNUMBER: ${{inputs.countNumber}}
         INPUT_COUNTTYPE: ${{inputs.countType}}
+        INPUT_TAGSPREFIX: ${{inputs.tagsPrefix}}

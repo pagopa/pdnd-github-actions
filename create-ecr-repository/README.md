@@ -1,6 +1,5 @@
 # aws-ecr-action
 This is AWS ECR action to create repository if not exist. <br>
-When executed in a container using a irsa role an env var named AWS_WEB_IDENTITY_TOKEN must be set beforehand; the var is used to configure the boto3 client and must contain the aws jwt token.
 
 ## Features:
  - Create repository in ECR

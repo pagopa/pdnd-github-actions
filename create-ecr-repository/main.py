@@ -4,13 +4,13 @@ import json
 import ast
 import traceback
 
-tagStatus = os.getenv("tagStatus", default="tagged")
-countType = os.getenv("countType", default="imageCountMoreThan")
-countNumber = os.getenv("countNumber", default=30)
-repositoryName = os.environ["repositoryName"]
-imageTagMutability = os.getenv("imageTagMutability", default="MUTABLE")
-tags = os.getenv("tags", default=[])
-tagPrefixList = os.getenv("tagPrefixList", default=["v"])
+tagStatus = os.getenv("INPUT_TAGSTATUS", default="tagged")
+countType = os.getenv("INPUT_COUNTTYPE", default="imageCountMoreThan")
+countNumber = os.getenv("INPUT_COUNTNUMBER", default=30)
+repositoryName = os.environ["INPUT_REPOSITORYNAME"]
+imageTagMutability = os.getenv("INPUT_IMAGETAGMUTABILITY", default="MUTABLE")
+tags = os.getenv("INPUT_TAGS", default=[])
+tagPrefixList = os.getenv("INPUT_TAGSPREFIX", default=["v"])
 
 ### Try validate variables
 if tags == "":
@@ -22,6 +22,8 @@ if type(tags) == str:
 if type(countNumber) == str:
     countNumber = ast.literal_eval(countNumber)
 
+if type(tagPrefixList) == str:
+    tagPrefixList = ast.literal_eval(tagPrefixList)
 
 
 client = boto3.client('ecr')
