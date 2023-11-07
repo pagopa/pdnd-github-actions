@@ -1,0 +1,51 @@
+name: 'AWS ECR create repository'
+description: 'Create repository in AWS ECR if not exist and set lifecycle policy'
+branding:
+  icon: 'cloud'
+  color: 'orange'
+inputs:
+  repositoryName:
+    description: 'Repository name'
+    required: true
+  imageTagMutability:
+    description: 'Repositary imageTagMutability MUTABLE|UNMUTABLE. Default MUTABLE'
+    required: true
+    default: 'MUTABLE'
+  tags:
+    description: 'Repositary tags list. Default no tags set'
+  tagStatus:
+    description: 'Lifecycle tagStatus can be tagged|untagged|any. Default any'
+    required: true
+    default: 'tagged'
+  countType:
+    description: 'Lifecycle countType can be imageCountMoreThan|sinceImagePushed. Default imageCountMoreThan'
+    required: true
+    default: 'imageCountMoreThan'
+  countNumber:
+    description: 'Lifecycle countNumber. Default 30'
+    required: true
+    default: '30'
+  tagsPrefix:
+    description: 'tags prefix'
+    type: array
+    required: false
+    default: '["v"]'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install requirements    
+      run: pip install boto3==1.28.64
+      shell: bash
+    - name: Create Repository
+      run: |
+        python3 ${{ github.action_path }}/main.py
+      shell: bash
+      env:
+        INPUT_REPOSITORYNAME: ${{inputs.repositoryName}}
+        INPUT_IMAGETAGMUTABILITY:  ${{inputs.imageTagMutability}}
+        INPUT_TAGS:  ${{inputs.tags}}
+        INPUT_TAGSTATUS: ${{inputs.tagStatus}}
+        INPUT_COUNTNUMBER: ${{inputs.countNumber}}
+        INPUT_COUNTTYPE: ${{inputs.countType}}
+        INPUT_TAGSPREFIX: ${{inputs.tagsPrefix}}
