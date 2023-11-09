@@ -9,21 +9,24 @@ on:
         type: string
 jobs:
   create_runner:
+    name: Create runner
     runs-on: ubuntu-latest
+    # These permissions are needed to interact with GitHub's OIDC Token endpoint.
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Create Runner
         id: create_runner
-        uses: pagopa/pdnd-github-actions/deploy-gh-runner@f2324991919536414cf6ecef62d1dbaeadea584e
+        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@PA-536
         with:
-          api_server: ${{ vars.K8S_API_SERVER }}
-          access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
-          base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
           name: ${{ github.event.repository.name }}
-          namespace: prod-github-runners
-          image: gateway.private.pdnd.pagopa.it/pagopa/pdnd-aws-runner-microservices:v1.2.0
-          service_account: github-actions-sa        
+          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+          namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
+          image: ${{ vars.RUNNER_DOCKER_IMAGE}}
+          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
           docker_enabled: true
-          image_pull_secret: regcred
     outputs:
       runner_label: ${{ steps.create_runner.outputs.runner_label }}
   build:
@@ -38,12 +41,12 @@ jobs:
         with:
           ref: ${{ inputs.ref_name }}
           persist-credentials: false
-      - name: Java Setup
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-          cache: 'maven'
+      # - name: Java Setup
+      #   uses: actions/setup-java@v3
+      #   with:
+      #     distribution: 'temurin'
+      #     java-version: '17'
+      #     cache: 'maven'
       - name: Cache SonarCloud packages
         uses: actions/cache@v3
         with:
@@ -78,9 +81,11 @@ jobs:
           -Dsonar.coverage.exclusions=**/test/**,**/health/**,**/metrics**/
       - name: Update dependency graph
         uses: advanced-security/maven-dependency-submission-action@571e99aab1055c2e71a1e2309b9691de18d6b7d6
-
   destroy_runner:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     if: ${{ always() && !contains(needs.create_runner.result, 'failure') }}
     needs:
       - create_runner
@@ -88,10 +93,9 @@ jobs:
     steps:
       - name: Destroy Runner
         id: destroy_runner
-        uses: pagopa/pdnd-github-actions/undeploy-gh-runner@f2324991919536414cf6ecef62d1dbaeadea584e
+        uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@PA-536
         with:
-          api_server: ${{ vars.K8S_API_SERVER }}
-          access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
-          base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
+          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
           runner_label: ${{ needs.create_runner.outputs.runner_label }}
-          namespace: prod-github-runners
+          namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }}
