@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Create Runner
         id: create_runner
-        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@PA-536
+        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
         with:
           name: ${{ github.event.repository.name }}
           cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
@@ -80,7 +80,7 @@ jobs:
     steps:
       - name: Destroy Runner
         id: destroy_runner
-        uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@PA-536
+        uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
         with:
           cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
           aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
