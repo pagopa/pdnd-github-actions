@@ -2,27 +2,29 @@ name: Release
 on:
   workflow_call:
 jobs:
-    create_runner:
-      name: Create runner
-      runs-on: ubuntu-latest
-      if: github.ref_type == 'tag'
-      steps:
-        - name: Create Runner
-          id: create_runner
-          uses: pagopa/pdnd-github-actions/deploy-gh-runner@9abe465ba9d0661d214ee52a7f3fd257833641f2
-          with:
-            api_server: ${{ vars.K8S_API_SERVER }}
-            access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
-            base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
-            name: ${{ github.event.repository.name }}
-            namespace: prod-github-runners
-            image: gateway.private.pdnd.pagopa.it/pagopa/pdnd-aws-runner-python:v1.1.0
-            service_account: github-actions-sa        
-            docker_enabled: true
-            image_pull_secret: regcred
-      outputs:
-        runner_label: ${{ steps.create_runner.outputs.runner_label }}
-    release:
+  create_runner:
+    name: Create runner
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
+    # These permissions are needed to interact with GitHub's OIDC Token endpoint.
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Create Runner
+        id: create_runner
+        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
+        with:
+          name: ${{ github.event.repository.name }}
+          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+          namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
+          image: ${{ vars.RUNNER_DOCKER_IMAGE}}
+          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
+          docker_enabled: true
+    outputs:
+      runner_label: ${{ steps.create_runner.outputs.runner_label }}
+  release:
       name: Release
       runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
       needs: create_runner
@@ -38,6 +40,12 @@ jobs:
                 exit 1
         - name: Check out the repo
           uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+        - name: Login to code artifact
+          run: |
+            echo CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain ${{ vars.CODE_ARTIFACT_DOMAIN }} --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} \
+              --query authorizationToken --output text --region ${{ vars.AWS_REGION }}) >> $GITHUB_ENV
+            echo "REPOSITORY_ENDPOINT=$(aws codeartifact get-repository-endpoint --domain ${{ vars.CODE_ARTIFACT_DOMAIN }}  \
+              --domain-owner ${{ secrets.AWS_ACCOUNT_ID }}  --repository ${{ vars.CODE_ARTIFACT_INTERNAL_REPO }}  --format pypi --query repositoryEndpoint --output text)" >> $GITHUB_ENV
         - name: Build pkg
           run: |
                 echo '__version__="'${{ steps.version.outputs.full }}'"' > _version.py
@@ -45,9 +53,9 @@ jobs:
         - name: Publish pkg
           uses: pypa/gh-action-pypi-publish@f8c70e705ffc13c3b4d1221169b84f12a75d6ca8
           with:
-            user: ${{ secrets.NEXUS_USERNAME }}
-            password: ${{ secrets.NEXUS_PASSWORD }}
-            repository-url: https://${{ vars.IMAGE_REGISTRY_URL }}/nexus/repository/pypi/
+            user: aws
+            password: ${{env.CODEARTIFACT_AUTH_TOKEN}}
+            repository-url: ${{ env.REPOSITORY_ENDPOINT}}
         - name: Slack Notification
           uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
           if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
@@ -60,18 +68,21 @@ jobs:
             notify_when: "success,failure,warnings"
           env:
             SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-    destroy_runner:
-      name: Destroy runner
-      runs-on: ubuntu-latest
-      if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
-      needs: [create_runner, release]
-      steps:
-        - name: Destroy Runner
-          id: destroy_runner
-          uses: pagopa/pdnd-github-actions/undeploy-gh-runner@9abe465ba9d0661d214ee52a7f3fd257833641f2
-          with:
-            api_server: ${{ vars.K8S_API_SERVER }}
-            access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
-            base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
-            runner_label: ${{ needs.create_runner.outputs.runner_label }}
-            namespace: prod-github-runners
+  destroy_runner:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    if: ${{ always() && !contains(needs.create_runner.result, 'failure') && !contains(needs.create_runner.result, 'skipped')}}
+    needs:
+      - create_runner
+      - release
+    steps:
+      - name: Destroy Runner
+        id: destroy_runner
+        uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
+        with:
+          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+          runner_label: ${{ needs.create_runner.outputs.runner_label }}
+          namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }}
