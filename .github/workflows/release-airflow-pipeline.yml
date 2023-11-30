@@ -85,7 +85,7 @@ jobs:
           uses: pagopa/pdnd-github-actions/deploy-airflow-dags@1d69db82abb736b2301a636a6de243c9bb4505c3
           with:
             project: ${{ github.event.repository.name }}
-            version: ${{ steps.version.outputs.full }}-new
+            version: ${{ steps.version.outputs.full }}
             airflow_api_url: "${{ vars.PDND_GATEWAY_URL }}/airflow-${{ inputs.airflow_env }}/api/v1"
             airflow_username: ${{ secrets.AIRFLOW_USERNAME }}
             airflow_password: ${{ secrets.AIRFLOW_PASSWORD }}
