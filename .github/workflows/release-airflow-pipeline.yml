@@ -77,7 +77,7 @@ jobs:
           run: |
             docker build \
                 --build-arg CODEARTIFACT_AUTH_TOKEN="${{env.CODEARTIFACT_AUTH_TOKEN}}" --build-arg AWS_ACCOUNT_ID="${{vars.CODEARTIFACT_AUTH_TOKEN}}" \
-                --build-arg CODEARTIFACT_DOMAIN="${{vars.CODEARTIFACT_DOMAIN}}" --build-arg CODEARTIFACT_INTERNAL_REPO="${{vars.CODEARTIFACT_INTERNAL_REPO}}}" \
+                --build-arg CODEARTIFACT_DOMAIN="${{vars.CODEARTIFACT_DOMAIN}}" --build-arg CODEARTIFACT_INTERNAL_REPO="${{vars.CODEARTIFACT_INTERNAL_REPO}}" \
                 -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
             docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
             docker push $REGISTRY/$REPOSITORY:latest
