@@ -22,20 +22,22 @@ jobs:
       name: Create runner
       runs-on: ubuntu-latest
       if: github.ref_type == 'tag'
+      # These permissions are needed to interact with GitHub's OIDC Token endpoint.
+      permissions:
+        id-token: write
+        contents: read
       steps:
         - name: Create Runner
           id: create_runner
-          uses: pagopa/pdnd-github-actions/deploy-gh-runner@9abe465ba9d0661d214ee52a7f3fd257833641f2
+          uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
           with:
-            api_server: ${{ vars.K8S_API_SERVER }}
-            access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
-            base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
             name: ${{ github.event.repository.name }}
-            namespace: prod-github-runners
-            image: gateway.private.pdnd.pagopa.it/pagopa/pdnd-aws-runner-python:v1.0.0
-            service_account: github-actions-sa        
+            cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+            aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+            namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
+            image: ${{ vars.RUNNER_DOCKER_IMAGE}}
+            service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
             docker_enabled: true
-            image_pull_secret: regcred
             volume_claim: ${{ inputs.airflow_volume_claim }}
             volume_mount_path: ${{ inputs.airflow_volume_mount_path }}
       outputs:
@@ -56,37 +58,34 @@ jobs:
                 exit 1
         - name: Check out the repo
           uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-        - name: Set up QEMU
-          uses: docker/setup-qemu-action@2b82ce82d56a2a04d2637cd93a637ae1b359c0a7
-          if: ${{ inputs.run_docker_build }}
-        - name: Set up Docker Buildx
-          id: buildx
-          uses: docker/setup-buildx-action@ecf95283f03858871ff00b787d79c419715afc34
-          if: ${{ inputs.run_docker_build }}
-        - name: Docker Login
-          uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
-          if: ${{ inputs.run_docker_build }}
+        - name: Create AWS ECR repository
+          uses: pagopa/pdnd-github-actions/create-ecr-repository@74cf3f8abfacd6814b924408a11b02f177f8f5a3
           with:
-            registry: ${{ vars.IMAGE_REGISTRY_URL }}
-            username: ${{ secrets.NEXUS_USERNAME }}
-            password: ${{ secrets.NEXUS_PASSWORD }}
-        - name: Docker Build and Push
-          uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
-          if: ${{ inputs.run_docker_build }}
-          with:
-            build-args: |
-              nexus=${{ vars.IMAGE_REGISTRY_URL }}
-            context: .
-            file: ./Dockerfile
-            network: host
-            push: true
-            provenance: false
-            tags: ${{ vars.IMAGE_REGISTRY_URL }}/${{ github.event.repository.name }}-image:${{ steps.version.outputs.full }}
+            repositoryName: ${{ github.event.repository.name }}
+        - name: Login to Amazon ECR
+          id: login-ecr
+          uses: aws-actions/amazon-ecr-login@v2
+        - name: Login to code artifact
+          run: |
+            echo CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain ${{ vars.CODE_ARTIFACT_DOMAIN }} --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} \
+              --query authorizationToken --output text --region ${{ vars.AWS_REGION }}) >> $GITHUB_ENV
+        - name: Build, tag, and push docker image to Amazon ECR
+          env:
+            REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+            REPOSITORY:  ${{ github.event.repository.name }}
+            IMAGE_TAG: ${{ steps.version.outputs.full }}
+          run: |
+            docker build \
+                --build-arg CODEARTIFACT_AUTH_TOKEN="${CODEARTIFACT_AUTH_TOKEN}" --build-arg AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID}" \
+                --build-arg CODEARTIFACT_DOMAIN="${CODE_ARTIFACT_DOMAIN}" --build-arg CODEARTIFACT_INTERNAL_REPO="${CODE_ARTIFACT_INTERNAL_REPO}" \
+                -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
+            docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+            docker push $REGISTRY/$REPOSITORY:latest
         - name: Deploy Airflow dags
           uses: pagopa/pdnd-github-actions/deploy-airflow-dags@1d69db82abb736b2301a636a6de243c9bb4505c3
           with:
             project: ${{ github.event.repository.name }}
-            version: ${{ steps.version.outputs.full }}
+            version: ${{ steps.version.outputs.full }}-new
             airflow_api_url: "${{ vars.PDND_GATEWAY_URL }}/airflow-${{ inputs.airflow_env }}/api/v1"
             airflow_username: ${{ secrets.AIRFLOW_USERNAME }}
             airflow_password: ${{ secrets.AIRFLOW_PASSWORD }}
@@ -104,17 +103,20 @@ jobs:
           env:
             SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     destroy_runner:
-      name: Destroy runner
       runs-on: ubuntu-latest
+      permissions:
+        id-token: write
+        contents: read
       if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
-      needs: [create_runner, release]
+      needs:
+        - create_runner
+        - release
       steps:
         - name: Destroy Runner
           id: destroy_runner
-          uses: pagopa/pdnd-github-actions/undeploy-gh-runner@9abe465ba9d0661d214ee52a7f3fd257833641f2
+          uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
           with:
-            api_server: ${{ vars.K8S_API_SERVER }}
-            access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
-            base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
+            cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+            aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
             runner_label: ${{ needs.create_runner.outputs.runner_label }}
-            namespace: prod-github-runners
+            namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }}
