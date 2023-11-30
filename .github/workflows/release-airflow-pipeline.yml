@@ -67,7 +67,7 @@ jobs:
           uses: aws-actions/amazon-ecr-login@v2
         - name: Login to code artifact
           run: |
-            echo CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain ${{ vars.CODE_ARTIFACT_DOMAIN }} --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} \
+            echo CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain ${{ vars.CODEARTIFACT_DOMAIN }} --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} \
               --query authorizationToken --output text --region ${{ vars.AWS_REGION }}) >> $GITHUB_ENV
         - name: Build, tag, and push docker image to Amazon ECR
           env:
@@ -76,8 +76,8 @@ jobs:
             IMAGE_TAG: ${{ steps.version.outputs.full }}
           run: |
             docker build \
-                --build-arg CODEARTIFACT_AUTH_TOKEN="${CODEARTIFACT_AUTH_TOKEN}" --build-arg AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID}" \
-                --build-arg CODEARTIFACT_DOMAIN="${CODE_ARTIFACT_DOMAIN}" --build-arg CODEARTIFACT_INTERNAL_REPO="${CODE_ARTIFACT_INTERNAL_REPO}" \
+                --build-arg CODEARTIFACT_AUTH_TOKEN="${{env.CODEARTIFACT_AUTH_TOKEN}}" --build-arg AWS_ACCOUNT_ID="${{vars.CODEARTIFACT_AUTH_TOKEN}}" \
+                --build-arg CODEARTIFACT_DOMAIN="${{vars.CODEARTIFACT_DOMAIN}}" --build-arg CODEARTIFACT_INTERNAL_REPO="${{vars.CODEARTIFACT_INTERNAL_REPO}}}" \
                 -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
             docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
             docker push $REGISTRY/$REPOSITORY:latest
@@ -90,18 +90,18 @@ jobs:
             airflow_username: ${{ secrets.AIRFLOW_USERNAME }}
             airflow_password: ${{ secrets.AIRFLOW_PASSWORD }}
             airflow_dags_volume_path: ${{ inputs.airflow_volume_mount_path }}/airflow-${{ inputs.airflow_env }}-dags
-        - name: Slack Notification
-          uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
-          if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
-          with:
-            token: ${{ secrets.GITHUB_TOKEN }}
-            status: ${{ job.status }}
-            notification_title: "{workflow} has {status_message}"
-            message_format: "{emoji} *{workflow}* <https://github.com/{repo}/actions/runs/${{ github.run_id }}|${{github.ref_name}}> {status_message} in <{repo_url}|{repo}>"
-            footer: "<{repo_url}|Repo> | <{workflow_url}|Workflow>"
-            notify_when: "success,failure,warnings"
-          env:
-            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        # - name: Slack Notification
+        #   uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
+        #   if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
+        #   with:
+        #     token: ${{ secrets.GITHUB_TOKEN }}
+        #     status: ${{ job.status }}
+        #     notification_title: "{workflow} has {status_message}"
+        #     message_format: "{emoji} *{workflow}* <https://github.com/{repo}/actions/runs/${{ github.run_id }}|${{github.ref_name}}> {status_message} in <{repo_url}|{repo}>"
+        #     footer: "<{repo_url}|Repo> | <{workflow_url}|Workflow>"
+        #     notify_when: "success,failure,warnings"
+        #   env:
+        #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     destroy_runner:
       runs-on: ubuntu-latest
       permissions:
