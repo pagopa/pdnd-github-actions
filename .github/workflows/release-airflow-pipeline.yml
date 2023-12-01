@@ -90,18 +90,18 @@ jobs:
             airflow_username: ${{ secrets.AIRFLOW_USERNAME }}
             airflow_password: ${{ secrets.AIRFLOW_PASSWORD }}
             airflow_dags_volume_path: ${{ inputs.airflow_volume_mount_path }}/airflow-${{ inputs.airflow_env }}-dags
-        # - name: Slack Notification
-        #   uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
-        #   if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
-        #   with:
-        #     token: ${{ secrets.GITHUB_TOKEN }}
-        #     status: ${{ job.status }}
-        #     notification_title: "{workflow} has {status_message}"
-        #     message_format: "{emoji} *{workflow}* <https://github.com/{repo}/actions/runs/${{ github.run_id }}|${{github.ref_name}}> {status_message} in <{repo_url}|{repo}>"
-        #     footer: "<{repo_url}|Repo> | <{workflow_url}|Workflow>"
-        #     notify_when: "success,failure,warnings"
-        #   env:
-        #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        - name: Slack Notification
+          uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
+          if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
+          with:
+            token: ${{ secrets.GITHUB_TOKEN }}
+            status: ${{ job.status }}
+            notification_title: "{workflow} has {status_message}"
+            message_format: "{emoji} *{workflow}* <https://github.com/{repo}/actions/runs/${{ github.run_id }}|${{github.ref_name}}> {status_message} in <{repo_url}|{repo}>"
+            footer: "<{repo_url}|Repo> | <{workflow_url}|Workflow>"
+            notify_when: "success,failure,warnings"
+          env:
+            SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     destroy_runner:
       runs-on: ubuntu-latest
       permissions:
