@@ -67,7 +67,7 @@ jobs:
           uses: aws-actions/amazon-ecr-login@v2
         - name: Login to code artifact
           run: |
-            echo CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain ${{ vars.CODEARTIFACT_DOMAIN }} --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} \
+            echo CODEARTIFACT_AUTH_TOKEN=::add-mask::$(aws codeartifact get-authorization-token --domain ${{ vars.CODEARTIFACT_DOMAIN }} --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} \
               --query authorizationToken --output text --region ${{ vars.AWS_REGION }}) >> $GITHUB_ENV
         - name: Build, tag, and push docker image to Amazon ECR
           env:
