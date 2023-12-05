@@ -67,17 +67,20 @@ jobs:
           uses: aws-actions/amazon-ecr-login@v2
         - name: Login to code artifact
           run: |
-            echo CODEARTIFACT_AUTH_TOKEN=::add-mask::$(aws codeartifact get-authorization-token --domain ${{ vars.CODEARTIFACT_DOMAIN }} --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} \
-              --query authorizationToken --output text --region ${{ vars.AWS_REGION }}) >> $GITHUB_ENV
+            CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain ${{ vars.CODEARTIFACT_DOMAIN }} --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} \
+              --query authorizationToken --output text --region ${{ vars.AWS_REGION }})
+            echo "::add-mask::$CODEARTIFACT_AUTH_TOKEN"
+            echo CODEARTIFACT_AUTH_TOKEN=$CODEARTIFACT_AUTH_TOKEN >> $GITHUB_ENV 
         - name: Build, tag, and push docker image to Amazon ECR
           env:
             REGISTRY: ${{ steps.login-ecr.outputs.registry }}
             REPOSITORY:  ${{ github.event.repository.name }}
             IMAGE_TAG: ${{ steps.version.outputs.full }}
           run: |
+            CODEARTIFACT_INTERNAL_REPO_URI=${{ vars.CODEARTIFACT_DOMAIN }}-${{ secrets.AWS_ACCOUNT_ID }}.d.codeartifact.${{ vars.AWS_REGION }}.amazonaws.com/pypi/${{ vars.CODEARTIFACT_INTERNAL_REPO }}/simple/
             docker build \
-                --build-arg CODEARTIFACT_AUTH_TOKEN="${{env.CODEARTIFACT_AUTH_TOKEN}}" --build-arg AWS_ACCOUNT_ID="${{secrets.AWS_ACCOUNT_ID}}" \
-                --build-arg CODEARTIFACT_DOMAIN="${{vars.CODEARTIFACT_DOMAIN}}" --build-arg CODEARTIFACT_INTERNAL_REPO="${{vars.CODEARTIFACT_INTERNAL_REPO}}" \
+                --build-arg CODEARTIFACT_AUTH_TOKEN="${{env.CODEARTIFACT_AUTH_TOKEN}}" --build-arg CODEARTIFACT_INTERNAL_REPO_URI="$CODEARTIFACT_INTERNAL_REPO_URI" \
+                --build-arg DOCKER_REGISTRY_URI=$REGISTRY \
                 -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
             docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
             docker push $REGISTRY/$REPOSITORY:latest
