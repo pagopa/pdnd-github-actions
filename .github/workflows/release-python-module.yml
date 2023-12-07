@@ -3,6 +3,9 @@ name: Python Semantic Release
 on:
   workflow_call:
     inputs:
+      release-type:
+        required: true
+        type: string
       working-directory:
         required: true
         type: string
@@ -66,6 +69,7 @@ jobs:
           prerelease: "false"
           commit: "true"
           push: "true"
+          force: ${{ inputs.release-type }}
           changelog: "true"
           directory: libs/${{ inputs.working-directory }}
   destroy_runner:
