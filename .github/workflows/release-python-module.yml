@@ -6,9 +6,6 @@ on:
       working-directory:
         required: true
         type: string
-      install-packages:
-        default: ""
-        type: string
       ci-timeout:
         default: 25
         type: number
