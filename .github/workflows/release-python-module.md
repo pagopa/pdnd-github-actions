@@ -40,3 +40,9 @@ A release is made if there is at least a commit with an allowed keyword that was
 * major = X.0.0
 * minor = 0.X.0
 * patch = 0.0.X
+
+### Required Inputs
+
+| Parameter           | Required | Default      |                                                                   Description                                                                   |
+|:--------------------|----------|:-------------|:-----------------------------------------------------------------------------------------------------------------------------------------------:|
+| working-directory   | *YES*    | false        | Working directory for the semantic-release action, from where the module is built then published                                                |  
