@@ -1,0 +1,72 @@
+name: Docker Python Container
+on:
+  workflow_call:
+
+jobs:
+  create_runner:
+    name: Create Runner
+    if: github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Create Runner
+        id: create_runner
+        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
+        with:
+          name: ${{ github.event.repository.name }}
+          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+          namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
+          image: ${{ vars.RUNNER_DOCKER_IMAGE}}
+          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
+          docker_enabled: true
+    outputs:
+      runner_label: ${{ steps.create_runner.outputs.runner_label }}
+  release:
+    name: Release
+    runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
+    needs: create_runner
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+      - name: Get version
+        run: |
+          echo "IMAGE_TAG=$(poetry version --short)" >> $GITHUB_ENV
+      - name: Create AWS ECR repository
+        uses: pagopa/pdnd-github-actions/create-ecr-repository@74cf3f8abfacd6814b924408a11b02f177f8f5a3
+        with:
+          repositoryName: ${{ github.event.repository.name }}
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build, tag, and push docker image to Amazon ECR
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY:  ${{ github.event.repository.name }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+        run: |
+          docker build \
+              --build-arg DOCKER_REGISTRY_URI=$REGISTRY \
+              -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+          docker push $REGISTRY/$REPOSITORY:latest
+  destroy_runner:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    if: ${{ always() && !contains(needs.create_runner.result, 'failure') && !contains(needs.create_runner.result, 'skipped')}}
+    needs:
+      - create_runner
+      - release
+    steps:
+      - name: Destroy Runner
+        id: destroy_runner
+        uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
+        with:
+          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+          runner_label: ${{ needs.create_runner.outputs.runner_label }}
+          namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }}
