@@ -39,8 +39,8 @@ jobs:
         run: |
           export "APP_VERSION=$(poetry version --short)"
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_OUTPUT"
-  release_artifacts:
-    name: Release Artifacts
+  publish_artifacts:
+    name: Publish Artifacts
     runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
     needs:
       - create_runner
@@ -54,11 +54,6 @@ jobs:
         uses: pagopa/pdnd-github-actions/create-ecr-repository@74cf3f8abfacd6814b924408a11b02f177f8f5a3
         with:
           repositoryName: ${{ github.event.repository.name }}
-      - name: Create AWS ECR Helm Repository
-        id: ecr_helm_repository
-        uses: pagopa/pdnd-github-actions/create-ecr-repository@74cf3f8abfacd6814b924408a11b02f177f8f5a3
-        with:
-          repositoryName: helm-charts
       - name: Login to AWS ECR
         id: ecr_login
         uses: aws-actions/amazon-ecr-login@v2
@@ -83,7 +78,7 @@ jobs:
           CHART: ${{ github.event.repository.name }}
         run: |
           helm package .k8s/helm/$CHART --version $CHART_VERSION --app-version $APP_VERSION
-          helm push $CHART-$CHART_VERSION.tgz oci://$REGISTRY/helm-charts
+          helm push $CHART-$CHART_VERSION.tgz oci://$REGISTRY
   destroy_runner:
     name: Destroy Runner
     runs-on: ubuntu-latest
@@ -94,7 +89,7 @@ jobs:
     needs:
       - create_runner
       - get_version
-      - release_artifacts
+      - publish_artifacts
     steps:
       - name: Destroy Runner
         id: destroy_runner
