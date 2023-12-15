@@ -19,7 +19,7 @@ jobs:
           cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
           aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
           namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
-          image: 688071769384.dkr.ecr.eu-central-1.amazonaws.com/pdnd-aws-runner-python:v1.2.2-SNAPSHOT
+          image: ${{ vars.RUNNER_DOCKER_IMAGE }}
           service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
           docker_enabled: true
     outputs:
