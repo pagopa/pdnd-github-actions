@@ -49,11 +49,16 @@ jobs:
       - name: Checkout
         id: checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-      - name: Create AWS ECR Repository
-        id: ecr_repository
+      - name: Create AWS ECR Docker Registry
+        id: ecr_docker_registry
         uses: pagopa/pdnd-github-actions/create-ecr-repository@74cf3f8abfacd6814b924408a11b02f177f8f5a3
         with:
           repositoryName: ${{ github.event.repository.name }}
+      - name: Create AWS ECR Helm Repository
+        id: ecr_helm_repository
+        uses: pagopa/pdnd-github-actions/create-ecr-repository@74cf3f8abfacd6814b924408a11b02f177f8f5a3
+        with:
+          repositoryName: helm-charts
       - name: Login to AWS ECR
         id: ecr_login
         uses: aws-actions/amazon-ecr-login@v2
@@ -75,10 +80,10 @@ jobs:
           CHART_VERSION: ${{ needs.get_version.outputs.app_version }}
           APP_VERSION: ${{ needs.get_version.outputs.app_version }}
           REGISTRY: ${{ steps.ecr_login.outputs.registry }}
-          REPOSITORY: ${{ github.event.repository.name }}
+          CHART: ${{ github.event.repository.name }}
         run: |
-          helm package .k8s/helm/$REPOSITORY --version $CHART_VERSION --app-version $APP_VERSION
-          helm push $REPOSITORY-$CHART_VERSION.tgz oci://$REGISTRY/helm
+          helm package .k8s/helm/$CHART --version $CHART_VERSION --app-version $APP_VERSION
+          helm push $CHART-$CHART_VERSION.tgz oci://$REGISTRY/helm-charts
   destroy_runner:
     name: Destroy Runner
     runs-on: ubuntu-latest
