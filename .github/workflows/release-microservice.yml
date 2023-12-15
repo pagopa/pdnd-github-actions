@@ -37,7 +37,8 @@ jobs:
       - name: Get Version
         id: get_version
         run: |
-          echo "APP_VERSION=$(poetry version --short)" >> $GITHUB_ENV
+          export "APP_VERSION=$(poetry version --short)"
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_OUTPUT"
   build_container:
     name: Build Container
     runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
@@ -58,7 +59,7 @@ jobs:
         env:
           REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           REPOSITORY: ${{ github.event.repository.name }}
-          IMAGE_TAG: ${{ env.APP_VERSION }}
+          IMAGE_TAG: ${{ needs.get_version.outputs.app_version }}
         run: |
           docker build \
               --build-arg DOCKER_REGISTRY_URI=$REGISTRY \
