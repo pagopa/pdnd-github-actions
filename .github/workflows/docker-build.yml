@@ -1,0 +1,39 @@
+name: Docker Build Container
+on:
+  workflow_call:
+    inputs:
+      application-version:
+        required: true
+        type: string
+
+jobs:
+  build_container:
+    name: Build Container
+    runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
+    needs:
+      - create_runner
+      - get_version
+    steps:
+      - name: Checkout
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+        id: checkout
+      - name: Create AWS ECR Repository
+        id: ecr_repository
+        uses: pagopa/pdnd-github-actions/create-ecr-repository@74cf3f8abfacd6814b924408a11b02f177f8f5a3
+        with:
+          repositoryName: ${{ github.event.repository.name }}
+      - name: Login to AWS ECR
+        id: ecr_login
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Publish Container Image to AWS ECR
+        id: image_publish
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: ${{ github.event.repository.name }}
+          IMAGE_TAG: ${{ needs.get_version.outputs.app_version }}
+        run: |
+          docker build \
+              --build-arg DOCKER_REGISTRY_URI=$REGISTRY \
+              -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+          docker push $REGISTRY/$REPOSITORY:latest
