@@ -57,7 +57,7 @@ jobs:
       - name: Publish Container Image to AWS ECR
         id: image_publish
         env:
-          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REGISTRY: ${{ steps.ecr_login.outputs.registry }}
           REPOSITORY: ${{ github.event.repository.name }}
           IMAGE_TAG: ${{ needs.get_version.outputs.app_version }}
         run: |
