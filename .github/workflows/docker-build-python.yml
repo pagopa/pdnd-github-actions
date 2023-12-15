@@ -53,6 +53,7 @@ jobs:
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
           docker push $REGISTRY/$REPOSITORY:latest
   destroy_runner:
+    name: Destroy Runner
     runs-on: ubuntu-latest
     permissions:
       id-token: write
