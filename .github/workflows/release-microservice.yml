@@ -39,8 +39,8 @@ jobs:
         run: |
           export "APP_VERSION=$(poetry version --short)"
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_OUTPUT"
-  build_container:
-    name: Build Container
+  release_artifacts:
+    name: Release Artifacts
     runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
     needs:
       - create_runner
@@ -70,6 +70,15 @@ jobs:
               -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
           docker push $REGISTRY/$REPOSITORY:latest
+      - name: Push Helm Chart to AWS ECR
+        env:
+          CHART_VERSION: ${{ needs.get_version.outputs.app_version }}
+          APP_VERSION: ${{ needs.get_version.outputs.app_version }}
+          REGISTRY: ${{ steps.ecr_login.outputs.registry }}
+          REPOSITORY: .k8s/helm/${{ github.event.repository.name }}
+        run: |
+          helm package $REPOSITORY --version $CHART_VERSION --app-version $APP_VERSION
+          helm push $REPOSITORY-$CHART_VERSION.tgz oci://$REGISTRY/helm
   destroy_runner:
     name: Destroy Runner
     runs-on: ubuntu-latest
@@ -80,7 +89,7 @@ jobs:
     needs:
       - create_runner
       - get_version
-      - build_container
+      - release_artifacts
     steps:
       - name: Destroy Runner
         id: destroy_runner
