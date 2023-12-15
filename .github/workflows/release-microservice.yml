@@ -63,6 +63,7 @@ jobs:
           REGISTRY: ${{ steps.ecr_login.outputs.registry }}
           REPOSITORY: ${{ github.event.repository.name }}
           IMAGE_TAG: ${{ needs.get_version.outputs.app_version }}
+          DOCKER_BUILDKIT: 1
         run: |
           docker build \
               --build-arg DOCKER_REGISTRY_URI=$REGISTRY \
