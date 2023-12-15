@@ -1,0 +1,19 @@
+name: Determine Application Version
+on:
+  workflow_call:
+
+jobs:
+  get_version:
+    name: Set App Version as Env Variable
+    runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
+    needs: create_runner
+    outputs:
+      app_version: ${{ steps.get_version.outputs.app_version }}
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+      - name: Get Version
+        id: get_version
+        run: |
+          echo "IMAGE_TAG=$(poetry version --short)" >> $GITHUB_OUTPUT
