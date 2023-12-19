@@ -1,6 +1,10 @@
 name: Release Microservice
 on:
   workflow_call:
+    inputs:
+      repository-language:
+        required: true
+        type: string
 
 jobs:
   create_runner:
@@ -34,7 +38,8 @@ jobs:
       - name: Checkout
         id: checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-      - name: Get Version
+      - name: Get Version (Python)
+        if: ${{ inputs.repository-language }} == 'python'
         id: get_version
         run: |
           export "APP_VERSION=$(poetry version --short)"
