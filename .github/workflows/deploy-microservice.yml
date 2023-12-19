@@ -70,12 +70,15 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
       - name: Deploy to K8S via Helm
         env:
+          HELM_RELEASE: ${{ github.event.repository.name }}
+          HELM_REPOSITORY: oci://688071769384.dkr.ecr.eu-central-1.amazonaws.com/charts/$HELM_RELEASE
+          HELM_VALUES: .k8s/helm/$HELM_RELEASE/values.yaml
+          HELM_CHART_VERSION: ${{ inputs.application-version }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.GHWF_SERVING_MS_AWS_ACCESS_KEY }}
           AWS_ACCESS_KEY_ID: ${{ secrets.GHWF_SERVING_MS_AWS_KEY_ID }}
         run: |
           aws eks update-kubeconfig --region eu-central-1 --name ${{ inputs.eks-cluster }}
-          helm repo add ${{ github.event.repository.name }} 688071769384.dkr.ecr.eu-central-1.amazonaws.com/charts/${{ github.event.repository.name }} --debug
-          helm upgrade --install ${{ github.event.repository.name }} --version ${{ inputs.application-version }} --namespace ${{ inputs.eks-namespace }} --create-namespace -f .k8s/helm/${{ github.event.repository.name }}/values.yaml --debug
+          helm upgrade --install $HELM_RELEASE $HELM_REPOSITORY --version $HELM_CHART_VERSION --namespace ${{ inputs.eks-namespace }} --create-namespace -f $HELM_VALUES --debug
       - name : Convert OpenAPI
         run: |
           wget --header "Authorization: token ${{ secrets.PAT_BOT }}" ${{ vars.OPENAPI_INTEGRATION_SCRIPT_URL }} -P /tmp/
