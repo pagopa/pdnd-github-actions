@@ -74,7 +74,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.GHWF_SERVING_MS_AWS_KEY_ID }}
         run: |
           aws eks update-kubeconfig --region eu-central-1 --name ${{ inputs.eks-cluster }}
-          helm repo add 688071769384.dkr.ecr.eu-central-1.amazonaws.com/charts/${{ github.event.repository.name }}
+          helm repo add ${{ github.event.repository.name }} 688071769384.dkr.ecr.eu-central-1.amazonaws.com/charts/${{ github.event.repository.name }}
           helm upgrade --install ${{ github.event.repository.name }} --version ${{ inputs.application-version }} --namespace ${{ inputs.eks-namespace }} --create-namespace
       - name : Convert OpenAPI
         run: |
