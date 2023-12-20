@@ -5,9 +5,6 @@ on:
       eks-cluster:
         required: true
         type: string
-      eks-namespace:
-        required: true
-        type: string
       openapi-folder:
         required: true
         type: string
@@ -72,7 +69,6 @@ jobs:
           HELM_RELEASE: ${{ github.event.repository.name }}
           HELM_REPOSITORY: oci://688071769384.dkr.ecr.eu-central-1.amazonaws.com/charts/${{ github.event.repository.name }}
           HELM_VALUES: .k8s/helm/${{ github.event.repository.name }}/values.yaml
-          HELM_NAMESPACE: ${{ inputs.eks-namespace }}
           HELM_CHART_VERSION: ${{ inputs.application-version }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.GHWF_SERVING_MS_AWS_ACCESS_KEY }}
           AWS_ACCESS_KEY_ID: ${{ secrets.GHWF_SERVING_MS_AWS_KEY_ID }}
