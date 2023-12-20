@@ -79,6 +79,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.GHWF_SERVING_MS_AWS_ACCESS_KEY }}
           AWS_ACCESS_KEY_ID: ${{ secrets.GHWF_SERVING_MS_AWS_KEY_ID }}
         run: |
+          aws sts get-caller-identity
           aws eks update-kubeconfig --region eu-central-1 --name ${{ inputs.eks-cluster }}
           cat $KUBECONFIG
           kubectl cluster-info
