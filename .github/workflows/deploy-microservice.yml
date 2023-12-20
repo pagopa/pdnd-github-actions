@@ -63,12 +63,11 @@ jobs:
           echo "The tag is not valid!"
           exit 1 
           fi  
-      - name: Install OpenAPI python script dependencies
-        run: pip install PyYAML==6.0
       - name: Login to AWS ECR
         id: ecr_login
         uses: aws-actions/amazon-ecr-login@v2
       - name: Deploy to K8S via Helm
+        id: helm_deploy
         env:
           HELM_RELEASE: ${{ github.event.repository.name }}
           HELM_REPOSITORY: oci://688071769384.dkr.ecr.eu-central-1.amazonaws.com/charts/${{ github.event.repository.name }}
@@ -79,12 +78,22 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.GHWF_SERVING_MS_AWS_KEY_ID }}
         run: |
           aws eks update-kubeconfig --region eu-central-1 --name ${{ inputs.eks-cluster }}
-          helm upgrade --install $HELM_RELEASE $HELM_REPOSITORY --version $HELM_CHART_VERSION -f $HELM_VALUES --debug
+          helm upgrade --install $HELM_RELEASE $HELM_REPOSITORY --version $HELM_CHART_VERSION -f $HELM_VALUES
+      - name: Install OpenAPI python script dependencies
+        id: openapi_dependencies
+        run: pip install PyYAML==6.0
       - name : Convert OpenAPI
+        id: openapi_convert
         run: |
           wget --header "Authorization: token ${{ secrets.PAT_BOT }}" ${{ vars.OPENAPI_INTEGRATION_SCRIPT_URL }} -P /tmp/
           python3 /tmp/openapi_integration.py -i ${{ inputs.openapi-folder }}/openapi.yaml -o ${{ vars.AWS_OPENAPI_PATH }}
+      - name: Setup Git Credentials
+        id: openapi_git_credentials
+        uses: de-vri-es/setup-git-credentials@v2.0.10
+        with:
+          credentials: https://pdnd-pagopa-github-bot:${{ secrets.PAT_BOT }}@github.com/
       - name : Deploy OpenAPI
+        id: openapi_deploy
         env:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.GHWF_SERVING_MS_AWS_ACCESS_KEY }}
           AWS_ACCESS_KEY_ID: ${{ secrets.GHWF_SERVING_MS_AWS_KEY_ID }}
