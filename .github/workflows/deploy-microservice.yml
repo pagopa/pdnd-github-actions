@@ -71,8 +71,8 @@ jobs:
       - name: Deploy to K8S via Helm
         env:
           HELM_RELEASE: ${{ github.event.repository.name }}
-          HELM_REPOSITORY: oci://688071769384.dkr.ecr.eu-central-1.amazonaws.com/charts/$HELM_RELEASE
-          HELM_VALUES: .k8s/helm/$HELM_RELEASE/values.yaml
+          HELM_REPOSITORY: oci://688071769384.dkr.ecr.eu-central-1.amazonaws.com/charts/${{ github.event.repository.name }}
+          HELM_VALUES: .k8s/helm/${{ github.event.repository.name }}/values.yaml
           HELM_NAMESPACE: ${{ inputs.eks-namespace }}
           HELM_CHART_VERSION: ${{ inputs.application-version }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.GHWF_SERVING_MS_AWS_ACCESS_KEY }}
