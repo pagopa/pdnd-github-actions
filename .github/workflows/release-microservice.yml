@@ -1,6 +1,10 @@
 name: Release Microservice
 on:
   workflow_call:
+    inputs:
+      repository-language:
+        required: true
+        type: string
 
 jobs:
   create_runner:
@@ -34,13 +38,14 @@ jobs:
       - name: Checkout
         id: checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-      - name: Get Version
+      - name: Get Version (Python)
+        if: ${{ inputs.repository-language }} == 'python'
         id: get_version
         run: |
           export "APP_VERSION=$(poetry version --short)"
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_OUTPUT"
-  build_container:
-    name: Build Container
+  publish_artifacts:
+    name: Publish Artifacts
     runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
     needs:
       - create_runner
@@ -49,11 +54,16 @@ jobs:
       - name: Checkout
         id: checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-      - name: Create AWS ECR Repository
-        id: ecr_repository
+      - name: Create AWS ECR Docker Registry
+        id: ecr_docker_registry
         uses: pagopa/pdnd-github-actions/create-ecr-repository@74cf3f8abfacd6814b924408a11b02f177f8f5a3
         with:
           repositoryName: ${{ github.event.repository.name }}
+      - name: Create AWS ECR Helm Repository
+        id: ecr_helm_repository
+        uses: pagopa/pdnd-github-actions/create-ecr-repository@74cf3f8abfacd6814b924408a11b02f177f8f5a3
+        with:
+          repositoryName: charts/${{ github.event.repository.name }}
       - name: Login to AWS ECR
         id: ecr_login
         uses: aws-actions/amazon-ecr-login@v2
@@ -70,6 +80,15 @@ jobs:
               -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
           docker push $REGISTRY/$REPOSITORY:latest
+      - name: Push Helm Chart to AWS ECR
+        env:
+          CHART_VERSION: ${{ needs.get_version.outputs.app_version }}
+          APP_VERSION: ${{ needs.get_version.outputs.app_version }}
+          REGISTRY: ${{ steps.ecr_login.outputs.registry }}
+          CHART: ${{ github.event.repository.name }}
+        run: |
+          helm package .k8s/helm/$CHART --version $CHART_VERSION --app-version $APP_VERSION
+          helm push $CHART-$CHART_VERSION.tgz oci://$REGISTRY/charts
   destroy_runner:
     name: Destroy Runner
     runs-on: ubuntu-latest
@@ -80,7 +99,7 @@ jobs:
     needs:
       - create_runner
       - get_version
-      - build_container
+      - publish_artifacts
     steps:
       - name: Destroy Runner
         id: destroy_runner

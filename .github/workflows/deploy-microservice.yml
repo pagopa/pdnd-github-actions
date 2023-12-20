@@ -1,0 +1,118 @@
+name: Deploy Microservice
+on:
+  workflow_call:
+    inputs:
+      eks-cluster:
+        required: true
+        type: string
+      openapi-folder:
+        required: true
+        type: string
+      application-version:
+        required: true
+        type: string
+
+jobs:
+  create_runner:
+    name: Create Runner
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Create Runner
+        id: create_runner
+        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
+        with:
+          name: ${{ github.event.repository.name }}
+          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+          namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
+          image: ${{ vars.RUNNER_DOCKER_IMAGE }}
+          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
+          docker_enabled: true
+    outputs:
+      runner_label: ${{ steps.create_runner.outputs.runner_label }}
+  deploy:
+    name: Deploy to K8S and APIGW
+    runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
+    needs: create_runner
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+      - name: Verify tag from release
+        id: tag_release_verify
+        run: |
+          if git show-ref --verify refs/tags/${{ inputs.ref_name }} >/dev/null 2>&1; then
+            echo "TAG_EXISTS=true" >> $GITHUB_ENV
+          else
+            echo "TAG_EXISTS=false" >> $GITHUB_ENV
+          fi
+      - name: Verify tag from deploy
+        id: tag_deploy_verify
+        if: env.TAG_EXISTS == 'false'
+        run: |
+          if [[ "${{ startsWith(github.ref, 'refs/tags/v') }}" == "true" ]]; then
+          echo "It's a valid tag"
+          else
+          echo "The tag is not valid!"
+          exit 1 
+          fi  
+      - name: Login to AWS ECR
+        id: ecr_login
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Deploy to K8S via Helm
+        id: helm_deploy
+        env:
+          HELM_RELEASE: ${{ github.event.repository.name }}
+          HELM_REPOSITORY: oci://688071769384.dkr.ecr.eu-central-1.amazonaws.com/charts/${{ github.event.repository.name }}
+          HELM_VALUES: .k8s/helm/${{ github.event.repository.name }}/values.yaml
+          HELM_CHART_VERSION: ${{ inputs.application-version }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.GHWF_SERVING_MS_AWS_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.GHWF_SERVING_MS_AWS_KEY_ID }}
+        run: |
+          aws eks update-kubeconfig --region eu-central-1 --name ${{ inputs.eks-cluster }}
+          export "HELM_NAMESPACE=$(yq -r '.namespace' $HELM_VALUES)"
+          helm upgrade --install $HELM_RELEASE $HELM_REPOSITORY --version $HELM_CHART_VERSION -f $HELM_VALUES
+      - name: Install OpenAPI python script dependencies
+        id: openapi_dependencies
+        run: pip install PyYAML==6.0
+      - name : Convert OpenAPI
+        id: openapi_convert
+        run: |
+          wget --header "Authorization: token ${{ secrets.PAT_BOT }}" ${{ vars.OPENAPI_INTEGRATION_SCRIPT_URL }} -P /tmp/
+          python3 /tmp/openapi_integration.py -i ${{ inputs.openapi-folder }}/openapi.yaml -o ${{ vars.AWS_OPENAPI_PATH }}
+      - name: Setup Git Credentials
+        id: openapi_git_credentials
+        uses: de-vri-es/setup-git-credentials@v2.0.10
+        with:
+          credentials: https://pdnd-pagopa-github-bot:${{ secrets.PAT_BOT }}@github.com/
+      - name : Deploy OpenAPI
+        id: openapi_deploy
+        env:
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.GHWF_SERVING_MS_AWS_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.GHWF_SERVING_MS_AWS_KEY_ID }}
+        run: |
+          cd .infra/aws
+          sh ./terraform.sh apply prod -auto-approve
+  destroy_runner:
+    name: Destroy Runner
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    if: ${{ always() && !contains(needs.create_runner.result, 'failure') && !contains(needs.create_runner.result, 'skipped')}}
+    needs:
+      - create_runner
+      - deploy
+    steps:
+      - name: Destroy Runner
+        id: destroy_runner
+        uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
+        with:
+          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+          runner_label: ${{ needs.create_runner.outputs.runner_label }}
+          namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }}
