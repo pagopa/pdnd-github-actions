@@ -74,7 +74,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.GHWF_SERVING_MS_AWS_KEY_ID }}
         run: |
           aws eks update-kubeconfig --region eu-central-1 --name ${{ inputs.eks-cluster }}
-          export "HELM_NAMESPACE=$(yq -r '.namespace' values.yaml)"
+          export "HELM_NAMESPACE=$(yq -r '.namespace' $HELM_VALUES)"
           helm upgrade --install $HELM_RELEASE $HELM_REPOSITORY --version $HELM_CHART_VERSION -f $HELM_VALUES
       - name: Install OpenAPI python script dependencies
         id: openapi_dependencies
