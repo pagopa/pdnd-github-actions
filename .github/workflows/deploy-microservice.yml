@@ -15,7 +15,6 @@ on:
 jobs:
   create_runner:
     name: Create Runner
-    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -42,24 +41,6 @@ jobs:
       - name: Checkout
         id: checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-      - name: Verify tag from release
-        id: tag_release_verify
-        run: |
-          if git show-ref --verify refs/tags/${{ inputs.ref_name }} >/dev/null 2>&1; then
-            echo "TAG_EXISTS=true" >> $GITHUB_ENV
-          else
-            echo "TAG_EXISTS=false" >> $GITHUB_ENV
-          fi
-      - name: Verify tag from deploy
-        id: tag_deploy_verify
-        if: env.TAG_EXISTS == 'false'
-        run: |
-          if [[ "${{ startsWith(github.ref, 'refs/tags/v') }}" == "true" ]]; then
-          echo "It's a valid tag"
-          else
-          echo "The tag is not valid!"
-          exit 1 
-          fi  
       - name: Login to AWS ECR
         id: ecr_login
         uses: aws-actions/amazon-ecr-login@v2
