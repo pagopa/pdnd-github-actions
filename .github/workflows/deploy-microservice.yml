@@ -70,8 +70,6 @@ jobs:
           HELM_REPOSITORY: oci://688071769384.dkr.ecr.eu-central-1.amazonaws.com/charts/${{ github.event.repository.name }}
           HELM_VALUES: .k8s/helm/${{ github.event.repository.name }}/values.yaml
           HELM_CHART_VERSION: ${{ inputs.application-version }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.GHWF_SERVING_MS_AWS_ACCESS_KEY }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.GHWF_SERVING_MS_AWS_KEY_ID }}
         run: |
           aws eks update-kubeconfig --region eu-central-1 --name ${{ inputs.eks-cluster }}
           export "HELM_NAMESPACE=$(yq -r '.namespace' $HELM_VALUES)"
@@ -91,9 +89,6 @@ jobs:
           credentials: https://pdnd-pagopa-github-bot:${{ secrets.PAT_BOT }}@github.com/
       - name : Deploy OpenAPI
         id: openapi_deploy
-        env:
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.GHWF_SERVING_MS_AWS_ACCESS_KEY }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.GHWF_SERVING_MS_AWS_KEY_ID }}
         run: |
           cd .infra/aws
           sh ./terraform.sh apply prod -auto-approve
