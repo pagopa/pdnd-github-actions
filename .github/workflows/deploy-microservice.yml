@@ -44,6 +44,7 @@ jobs:
       - name: Login to AWS ECR
         id: ecr_login
         uses: aws-actions/amazon-ecr-login@v2
+        
       - name: Deploy to K8S via Helm
         id: helm_deploy
         env:
@@ -72,7 +73,7 @@ jobs:
         id: openapi_deploy
         run: |
           cd .infra/aws
-          sh ./terraform.sh apply prod -auto-approve
+          sh ./terraform.sh apply prod -auto-approve -target=module.deploy_api_gw
   destroy_runner:
     name: Destroy Runner
     runs-on: ubuntu-latest
