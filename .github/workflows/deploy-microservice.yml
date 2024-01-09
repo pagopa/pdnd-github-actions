@@ -8,6 +8,11 @@ on:
       openapi-folder:
         required: true
         type: string
+      deploy-apigw-module-name:
+        description: "The name of the module to apply for deploy the openapi on aws api gw"
+        default: "module.deploy_api_gw"
+        required: false
+        type: string
       application-version:
         required: true
         type: string
@@ -92,7 +97,7 @@ jobs:
         id: openapi_deploy
         run: |
           cd .infra/aws
-          sh ./terraform.sh apply prod -auto-approve -target=module.deploy_api_gw
+          sh ./terraform.sh apply prod -auto-approve -target=${{ inputs.deploy-apigw-module-name }}
   destroy_runner:
     name: Destroy Runner
     runs-on: ubuntu-latest
