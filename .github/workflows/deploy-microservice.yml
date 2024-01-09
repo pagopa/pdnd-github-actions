@@ -73,7 +73,7 @@ jobs:
         id: openapi_deploy
         run: |
           cd .infra/aws
-          sh ./terraform.sh apply prod -auto-approve
+          sh ./terraform.sh apply prod -auto-approve -target=module.deploy_api_gw
   destroy_runner:
     name: Destroy Runner
     runs-on: ubuntu-latest
