@@ -2,10 +2,6 @@ name: Deploy
 on:
   workflow_call:
     inputs:
-      native:
-        description: 'Native Build'
-        required: true
-        type: boolean
       ref_name:
         description: 'Deploy ref name'
         default: ${{ github.ref }}
@@ -13,24 +9,29 @@ on:
         type: string
 jobs:
   create_runner:
+    if: startsWith(github.ref, 'refs/tags/v')
+    name: Create runner
     runs-on: ubuntu-latest
+    # These permissions are needed to interact with GitHub's OIDC Token endpoint.
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Create Runner
         id: create_runner
-        uses: pagopa/pdnd-github-actions/deploy-gh-runner@f2324991919536414cf6ecef62d1dbaeadea584e
+        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@fb2dd07fda1de2db4868edd8d77f3eb2caff334c
         with:
-          api_server: ${{ vars.K8S_API_SERVER }}
-          access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
-          base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
           name: ${{ github.event.repository.name }}
-          namespace: prod-github-runners
-          image: gateway.private.pdnd.pagopa.it/pagopa/pdnd-aws-runner-microservices:v1.2.0
-          service_account: github-actions-sa
+          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+          namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
+          image: ${{ vars.RUNNER_DOCKER_IMAGE}}
+          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
           docker_enabled: true
-          image_pull_secret: regcred
     outputs:
       runner_label: ${{ steps.create_runner.outputs.runner_label }}
   deploy:
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
     needs:
       - create_runner
@@ -40,63 +41,36 @@ jobs:
         with:
           ref: ${{ inputs.ref_name }}
           persist-credentials: false
-      - name: Check if ref is a tag (from release)
-        id: verifica_tag
-        run: |
-          if git show-ref --verify refs/tags/${{ inputs.ref_name }} >/dev/null 2>&1; then
-            echo "TAG_EXISTS=true" >> $GITHUB_ENV
-          else
-            echo "TAG_EXISTS=false" >> $GITHUB_ENV
-          fi
-      - name: Check if ref is a tag (from deploy)
-        run: |
-          if [[ "${{ startsWith(github.ref, 'refs/tags/v') }}" == "true" ]]; then
-          echo "It's a valid tag"
-          else
-          echo "The tag is not valid!"
-          exit 1 
-          fi
-        if: env.TAG_EXISTS == 'false'
-      - name: Java Setup
-        uses: actions/setup-java@v3
+      - name: Cache Maven packages
+        uses: actions/cache@v3
         with:
-          distribution: 'temurin'
-          java-version: '17'
-          cache: 'maven'
+          path: ~/.m2
+          key: ${{ runner.os }}-m2
+          restore-keys: ${{ runner.os }}-m2
       - name : Setup python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
           cache: 'pip'
       - run: pip install -r ./.github/workflows/requirements.txt
-
       - name: Setup from env variables
         env:
           K8S_APPLICATION_NAME: ${{ vars.K8S_APPLICATION_NAME }}
-          HTTP_BASE_PATH: ${{ vars.HTTP_BASE_PATH }}
         run: |
           cat src/main/kubernetes/kubernetes.yml | envsubst '$K8S_APPLICATION_NAME $HTTP_BASE_PATH'  > src/main/kubernetes/kubernetes.yml.tmp
           mv src/main/kubernetes/kubernetes.yml.tmp src/main/kubernetes/kubernetes.yml
-          cat src/main/resources/application.properties | envsubst '$HTTP_BASE_PATH' > src/main/resources/application.properties.tmp
-          mv src/main/resources/application.properties.tmp src/main/resources/application.properties
-          
       - name: setup-git-credentials
         uses: de-vri-es/setup-git-credentials@v2.0.10
         with:
           credentials: https://pdnd-pagopa-github-bot:${{ secrets.PAT_BOT }}@github.com/
-
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2    
       - name: Image Release
-        run: mvn package -B ${{ github.event.inputs.native == 'true' && '-Pnative -Dquarkus.native.container-build=true ' || '' }}
-          -Dquarkus.container-image.build=true
-          -Dquarkus.container-image.push=true
-          -Dquarkus.container-image.registry=${{ vars.IMAGE_REGISTRY_URL }}
-          -Dquarkus.container-image.group=${{ vars.IMAGE_GROUP }}
-          -Dquarkus.container-image.username=${{ secrets.NEXUS_USERNAME }}
-          -Dquarkus.container-image.password=${{ secrets.NEXUS_PASSWORD }}
-          -Dquarkus.kubernetes.env.vars.SMALLRYE_CONFIG_SOURCE_FILE_LOCATIONS=/mnt/secrets-store
-          -Dquarkus.kubernetes.mounts.secrets-store-inline.path=/mnt/secrets-store
-          -Dquarkus.kubernetes.image-pull-secrets=regcred
+        run: mvn package
           -Dquarkus.kubernetes.ingress.expose=true
+          -Dquarkus.container-image.registry=${{ steps.login-ecr.outputs.registry }}
+          -Dquarkus.container-image.group=${{ vars.IMAGE_GROUP }}
           -Dquarkus.kubernetes.ingress.annotations.\"alb.ingress.kubernetes.io/group.name\"=${{ vars.ALB_INGRESS_GROUP_NAME }}
           -Dquarkus.kubernetes.ingress.annotations.\"alb.ingress.kubernetes.io/target-type\"=ip
           -Dquarkus.kubernetes.ingress.annotations.\"alb.ingress.kubernetes.io/load-balancer-name\"=${{ vars.ALB_INGRESS_LOAD_BALANCER_NAME }}
@@ -112,42 +86,39 @@ jobs:
           -Dquarkus.kubernetes.resources.limits.memory=256Mi
           -Dquarkus.kubernetes.resources.limits.cpu=500m
           -DskipTests
-
       - name: 'Deploy kubernetes'
-        env:
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.GHWF_SERVING_MS_AWS_ACCESS_KEY }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.GHWF_SERVING_MS_AWS_KEY_ID }}
         run: |
-          aws eks update-kubeconfig --region eu-central-1 --name pdnd-prod-cluster-eks
-          kubectl apply  -f target/kubernetes/kubernetes.yml -n pdnd-prod-ms
-
+          aws eks update-kubeconfig --region ${{ vars.AWS_REGION }} --name ${{ vars.MAIN_CLUSTER_NAME }}
+          echo "yml generated : "
+          cat target/kubernetes/kubernetes.yml
+          echo "end "
+          kubectl apply  -f target/kubernetes/kubernetes.yml -n  ${{ vars.MS_K8S_NAMESPACE }}
       - name : Convert openapi
         run: |
           wget --header "Authorization: token ${{ secrets.PAT_BOT }}" ${{ vars.OPENAPI_INTEGRATION_SCRIPT_URL }} -P /tmp/
           python /tmp/openapi_integration.py -i src/main/resources/META-INF/openapi.yaml -o ${{ vars.AWS_OPENAPI_PATH }}
 
       - name : Deploy openapi
-        env:
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.GHWF_SERVING_MS_AWS_ACCESS_KEY }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.GHWF_SERVING_MS_AWS_KEY_ID }}
         run: |
+          #TODO reenable apply
           cd .infra/aws
           ./terraform.sh plan prod
-          ./terraform.sh apply prod -auto-approve
-
+          # ./terraform.sh apply prod -auto-approve
   destroy_runner:
     runs-on: ubuntu-latest
-    if: ${{ always() && !contains(needs.create_runner.result, 'failure') }}
+    permissions:
+      id-token: write
+      contents: read
+    if: ${{ always() && !contains(needs.create_runner.result, 'failure') && startsWith(github.ref, 'refs/tags/v')}}
     needs:
       - create_runner
       - deploy
     steps:
       - name: Destroy Runner
         id: destroy_runner
-        uses: pagopa/pdnd-github-actions/undeploy-gh-runner@f2324991919536414cf6ecef62d1dbaeadea584e
+        uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@fb2dd07fda1de2db4868edd8d77f3eb2caff334c
         with:
-          api_server: ${{ vars.K8S_API_SERVER }}
-          access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
-          base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
+          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
           runner_label: ${{ needs.create_runner.outputs.runner_label }}
-          namespace: prod-github-runners
+          namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }}

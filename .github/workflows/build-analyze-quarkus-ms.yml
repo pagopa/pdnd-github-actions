@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: Create Runner
         id: create_runner
-        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@PA-536
+        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@fb2dd07fda1de2db4868edd8d77f3eb2caff334c
         with:
           name: ${{ github.event.repository.name }}
           cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
@@ -41,12 +41,6 @@ jobs:
         with:
           ref: ${{ inputs.ref_name }}
           persist-credentials: false
-      # - name: Java Setup
-      #   uses: actions/setup-java@v3
-      #   with:
-      #     distribution: 'temurin'
-      #     java-version: '17'
-      #     cache: 'maven'
       - name: Cache SonarCloud packages
         uses: actions/cache@v3
         with:
@@ -93,7 +87,7 @@ jobs:
     steps:
       - name: Destroy Runner
         id: destroy_runner
-        uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@PA-536
+        uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@fb2dd07fda1de2db4868edd8d77f3eb2caff334c
         with:
           cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
           aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
