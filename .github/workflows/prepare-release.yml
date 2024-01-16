@@ -44,6 +44,7 @@ jobs:
         uses: google-github-actions/release-please-action@v4
         with:
           release-type: ${{ inputs.release-type }}
+          target-branch: ${{ inputs.target-branch }}
   destroy_runner:
     name: Destroy Runner
     runs-on: ubuntu-latest
