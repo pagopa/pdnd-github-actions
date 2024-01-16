@@ -42,7 +42,7 @@ jobs:
         if: ${{ inputs.repository-language }} == 'python'
         id: get_version
         run: |
-          export "APP_VERSION=$(poetry version --short)"
+          APP_VERSION=$(poetry version --short)
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_OUTPUT"
   publish_artifacts:
     name: Publish Artifacts
