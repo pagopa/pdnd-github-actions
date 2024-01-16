@@ -5,6 +5,9 @@ on:
       release-type:
         required: true
         type: string
+      target-branch:
+        required: true
+        type: string
 
 jobs:
   create_runner:
