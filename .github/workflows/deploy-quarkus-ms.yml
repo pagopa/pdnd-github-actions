@@ -56,9 +56,14 @@ jobs:
       - name: Setup from env variables
         env:
           K8S_APPLICATION_NAME: ${{ vars.K8S_APPLICATION_NAME }}
+          K8S_SERVICE_ACCOUNT_NAME: ${{ vars.K8S_SERVICE_ACCOUNT_NAME }}
         run: |
-          cat src/main/kubernetes/kubernetes.yml | envsubst '$K8S_APPLICATION_NAME $HTTP_BASE_PATH'  > src/main/kubernetes/kubernetes.yml.tmp
+          cat src/main/kubernetes/kubernetes.yml | envsubst '$K8S_APPLICATION_NAME $K8S_SERVICE_ACCOUNT_NAME'  > src/main/kubernetes/kubernetes.yml.tmp
           mv src/main/kubernetes/kubernetes.yml.tmp src/main/kubernetes/kubernetes.yml
+          cat src/main/resources/application.properties | envsubst '$HTTP_BASE_PATH' > src/main/resources/application.properties.tmp
+          mv src/main/resources/application.properties.tmp src/main/resources/application.properties
+          VERSION="${{ github.ref_name }}"
+          echo "VERSION=${VERSION:1}" >> $GITHUB_ENV
       - name: setup-git-credentials
         uses: de-vri-es/setup-git-credentials@v2.0.10
         with:
@@ -66,17 +71,16 @@ jobs:
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2    
-      - name: Image Release
+      - name: Generating k8s yml
         run: mvn package
           -Dquarkus.kubernetes.ingress.expose=true
           -Dquarkus.container-image.registry=${{ steps.login-ecr.outputs.registry }}
           -Dquarkus.container-image.group=${{ vars.IMAGE_GROUP }}
-          -Dquarkus.kubernetes.ingress.annotations.\"alb.ingress.kubernetes.io/group.name\"=${{ vars.ALB_INGRESS_GROUP_NAME }}
-          -Dquarkus.kubernetes.ingress.annotations.\"alb.ingress.kubernetes.io/target-type\"=ip
-          -Dquarkus.kubernetes.ingress.annotations.\"alb.ingress.kubernetes.io/load-balancer-name\"=${{ vars.ALB_INGRESS_LOAD_BALANCER_NAME }}
-          -Dquarkus.kubernetes.ingress.annotations.\"alb.ingress.kubernetes.io/scheme\"=internal
-          -Dquarkus.kubernetes.ingress.ingress-class-name=alb
-          -Dquarkus.kubernetes.ports.http.path=${{ vars.HTTP_BASE_PATH }}
+          -Dquarkus.container-image.tag=${{ env.VERSION }}
+          -Dquarkus.application.version="${{ env.VERSION }}"
+          -Dquarkus.kubernetes.ingress.ingress-class-name=external-api-nginx
+          -Dquarkus.kubernetes.ingress.annotations.\"nginx.ingress.kubernetes.io/rewrite-target\"="/\$2"
+          -Dquarkus.kubernetes.ingress.annotations.\"nginx.ingress.kubernetes.io/use-regex\"="true"
           -Dquarkus.kubernetes.service-account=${{ vars.K8S_SERVICE_ACCOUNT_NAME }}
           -Dquarkus.kubernetes.name=${{ vars.K8S_APPLICATION_NAME }}
           -Dquarkus.kubernetes.add-version-to-label-selectors=false
@@ -85,6 +89,7 @@ jobs:
           -Dquarkus.kubernetes.resources.requests.cpu=250m
           -Dquarkus.kubernetes.resources.limits.memory=256Mi
           -Dquarkus.kubernetes.resources.limits.cpu=500m
+          -Dquarkus.kubernetes.ports.http.path="${{ vars.HTTP_BASE_PATH }}(/|$)(.*)"
           -DskipTests
       - name: 'Deploy kubernetes'
         run: |
@@ -100,10 +105,9 @@ jobs:
 
       - name : Deploy openapi
         run: |
-          #TODO reenable apply
           cd .infra/aws
-          ./terraform.sh plan prod
-          # ./terraform.sh apply prod -auto-approve
+          ./terraform.sh plan prod -target=module.deploy_api_gw
+          ./terraform.sh apply prod -auto-approve -target=module.deploy_api_gw
   destroy_runner:
     runs-on: ubuntu-latest
     permissions:

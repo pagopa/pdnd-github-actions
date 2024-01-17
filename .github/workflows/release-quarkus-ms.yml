@@ -42,7 +42,6 @@ jobs:
       BOT_USERNAME: pdnd-pagopa-github-bot
       BOT_EMAIL: "pdnd-pagopa-github-bot@pagopa.it"
     environment: prod
-    if: "!contains(github.event.head_commit.message, '[ci skip]')"
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -78,14 +77,7 @@ jobs:
             @semantic-release/changelog@6.0.0
             @semantic-release/git
         env:
-          GITHUB_TOKEN: ${{ secrets.PAT_BOT }}        
-      - name: Setup from env variables
-        if: steps.semantic.outputs.new_release_published == 'true'
-        env:
-          HTTP_BASE_PATH: ${{ vars.HTTP_BASE_PATH }}
-        run: |
-          cat src/main/resources/application.properties | envsubst '$HTTP_BASE_PATH' > src/main/resources/application.properties.tmp
-          mv src/main/resources/application.properties.tmp src/main/resources/application.properties
+          GITHUB_TOKEN: ${{ secrets.PAT_BOT }}
       - name: Login to Amazon ECR
         if: steps.semantic.outputs.new_release_published == 'true'
         id: login-ecr
@@ -101,6 +93,7 @@ jobs:
           -Dquarkus.container-image.registry=${{ steps.login-ecr.outputs.registry }}
           -Dquarkus.container-image.group=${{ vars.IMAGE_GROUP }}
           -Dquarkus.container-image.tag="${{ steps.semantic.outputs.new_release_version }}"
+          -Dquarkus.application.version="${{ steps.semantic.outputs.new_release_version }}"
           -Dquarkus.container-image.push=true
           -Dquarkus.container-image.build=true
           -DskipTests
@@ -120,7 +113,7 @@ jobs:
         with:
           token: ${{ secrets.PAT_BOT }}
           branch_name: ${{ github.ref }}
-          bot_name: ${{ env.BOT_USERNAME }}        
+          bot_name: ${{ env.BOT_USERNAME }}     
     outputs:
       release_tag: ${{ steps.semantic.outputs.new_release_version }}
   destroy_runner:

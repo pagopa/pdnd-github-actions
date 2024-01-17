@@ -30,7 +30,6 @@ jobs:
     outputs:
       runner_label: ${{ steps.create_runner.outputs.runner_label }}
   build:
-    if: "!contains(github.event.head_commit.message, '[ci skip]')" #skip on commit done by release pipeline
     name: Build and analyze
     needs:
       - create_runner
