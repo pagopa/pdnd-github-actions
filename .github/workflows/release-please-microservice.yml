@@ -1,4 +1,4 @@
-name: Release Microservice
+name: Release Please - Microservice
 on:
   workflow_call:
 
