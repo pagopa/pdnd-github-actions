@@ -13,9 +13,6 @@ on:
         default: "module.deploy_api_gw"
         required: false
         type: string
-      application-version:
-        required: false
-        type: string
 
 jobs:
   create_runner:
@@ -74,7 +71,7 @@ jobs:
           HELM_RELEASE: ${{ github.event.repository.name }}
           HELM_REPOSITORY: oci://688071769384.dkr.ecr.eu-central-1.amazonaws.com/charts/${{ github.event.repository.name }}
           HELM_VALUES: .k8s/helm/${{ github.event.repository.name }}/values.yaml
-          HELM_CHART_VERSION: ${{ inputs.application-version || github.ref_name }}
+          HELM_CHART_VERSION: ${{ github.ref_name }}
         run: |
           aws eks update-kubeconfig --region eu-central-1 --name ${{ inputs.eks-cluster }}
           HELM_NAMESPACE=$(yq -r '.namespace' $HELM_VALUES)
