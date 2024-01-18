@@ -1,13 +1,6 @@
-name: Release Microservice
+name: Release Please - Prepare
 on:
   workflow_call:
-    inputs:
-      release-type:
-        required: true
-        type: string
-      target-branch:
-        required: true
-        type: string
 
 jobs:
   create_runner:
@@ -42,9 +35,6 @@ jobs:
       - name: Release-Please
         id: release_please
         uses: google-github-actions/release-please-action@v4
-        with:
-          release-type: ${{ inputs.release-type }}
-          target-branch: ${{ inputs.target-branch }}
   destroy_runner:
     name: Destroy Runner
     runs-on: ubuntu-latest
