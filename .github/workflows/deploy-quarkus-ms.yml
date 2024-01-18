@@ -107,7 +107,7 @@ jobs:
         run: |
           cd .infra/aws
           ./terraform.sh plan prod -target=module.deploy_api_gw
-          ./terraform.sh apply prod -auto-approve -target=module.deploy_api_gw
+          #./terraform.sh apply prod -auto-approve -target=module.deploy_api_gw
   destroy_runner:
     runs-on: ubuntu-latest
     permissions:
