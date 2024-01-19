@@ -35,6 +35,15 @@ jobs:
       - name: Release-Please
         id: release_please
         uses: google-github-actions/release-please-action@v4
+      - name: Get Release PR Number
+        id: pr_number
+        run: |
+          echo "RELEASE_PR_NUMBER=$(jq -r '.number' ${{ steps.release_please.outputs.pr }})" >> "$GITHUB_OUTPUT"
+      - name: Approve Release PR
+        id: approve_pr
+        uses: hmarr/auto-approve-action@v3
+        with:
+          pull-request-number: ${{ steps.pr_number.outputs.RELEASE_PR_NUMBER }}
   destroy_runner:
     name: Destroy Runner
     runs-on: ubuntu-latest
