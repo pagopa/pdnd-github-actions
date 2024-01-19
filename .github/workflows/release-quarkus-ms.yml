@@ -5,7 +5,7 @@ on:
       native:
         description: 'Native Build'
         default: false
-        required: true
+        required: false
         type: boolean
     outputs:
       release_tag:
@@ -13,21 +13,24 @@ on:
         value: ${{ jobs.release.outputs.release_tag }}
 jobs:
   create_runner:
+    name: Create runner
     runs-on: ubuntu-latest
+    # These permissions are needed to interact with GitHub's OIDC Token endpoint.
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Create Runner
         id: create_runner
-        uses: pagopa/pdnd-github-actions/deploy-gh-runner@f2324991919536414cf6ecef62d1dbaeadea584e
+        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@fb2dd07fda1de2db4868edd8d77f3eb2caff334c
         with:
-          api_server: ${{ vars.K8S_API_SERVER }}
-          access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
-          base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
           name: ${{ github.event.repository.name }}
-          namespace: prod-github-runners
-          image: gateway.private.pdnd.pagopa.it/pagopa/pdnd-aws-runner-microservices:v1.2.0
-          service_account: github-actions-sa
+          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+          namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
+          image: ${{ vars.RUNNER_DOCKER_IMAGE}}
+          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
           docker_enabled: true
-          image_pull_secret: regcred
     outputs:
       runner_label: ${{ steps.create_runner.outputs.runner_label }}
   release:
@@ -36,11 +39,9 @@ jobs:
       - create_runner
     env:
       GITHUB_TOKEN: ${{ secrets.PAT_BOT }}
-      JAVA_HOME: /usr/lib/jvm/temurin-17-jdk-amd64
       BOT_USERNAME: pdnd-pagopa-github-bot
       BOT_EMAIL: "pdnd-pagopa-github-bot@pagopa.it"
     environment: prod
-    if: "!contains(github.event.head_commit.message, '[ci skip]')"
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -53,47 +54,72 @@ jobs:
             echo "Error: Workflow must be triggered from default branch ($default_branch)." >&2
           exit 1
           fi
-      - name: Java Setup
-        uses: actions/setup-java@v3
+      - uses: actions/setup-node@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
-          cache: 'maven'
-      - name: Remove Snapshot
-        run: |
-          ./mvnw versions:set -DremoveSnapshot versions:commit
-          git config --global user.name ${{ env.BOT_USERNAME }}
-          git config --global user.email ${{ env.BOT_EMAIL }}
-          git add -A
-          git commit -m "[ci skip] Removed snapshot version for current release"
-      - name: Create Tag
-        run: |
-          git config --global user.name ${{ env.BOT_USERNAME }}
-          git config --global user.email ${{ env.BOT_EMAIL }}
-          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-          git tag -a v$VERSION -m "Version $VERSION"
-          git push origin --tags
+          node-version: 18
+      - name : Setup python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+          cache: 'pip'
+      - name: Cache Maven packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2
+          restore-keys: ${{ runner.os }}-m2    
+      - name: Semantic Release
+        uses: cycjimmy/semantic-release-action@v4
+        id: semantic
+        with:
+          extra_plugins: |
+            @semantic-release/changelog@6.0.0
+            @semantic-release/git
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_BOT }}
+      - name: Login to Amazon ECR
+        if: steps.semantic.outputs.new_release_published == 'true'
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Create AWS ECR repository
+        if: steps.semantic.outputs.new_release_published == 'true'
+        uses: pagopa/pdnd-github-actions/create-ecr-repository@74cf3f8abfacd6814b924408a11b02f177f8f5a3
+        with:
+          repositoryName: "${{ vars.IMAGE_GROUP }}/${{ github.event.repository.name }}"
+      - name: Image Release
+        if: steps.semantic.outputs.new_release_published == 'true'
+        run: mvn package -B ${{ github.event.inputs.native == 'true' && '-Pnative -Dquarkus.native.container-build=true ' || '' }}
+          -Dquarkus.container-image.registry=${{ steps.login-ecr.outputs.registry }}
+          -Dquarkus.container-image.group=${{ vars.IMAGE_GROUP }}
+          -Dquarkus.container-image.tag="${{ steps.semantic.outputs.new_release_version }}"
+          -Dquarkus.application.version="${{ steps.semantic.outputs.new_release_version }}"
+          -Dquarkus.container-image.push=true
+          -Dquarkus.container-image.build=true
+          -DskipTests
       - name: Move to next version
+        if: steps.semantic.outputs.new_release_published == 'true'
         run: |
-          ./mvnw build-helper:parse-version versions:set \
-          -DnewVersion=\${parsedVersion.majorVersion}.\${parsedVersion.minorVersion}.\${parsedVersion.nextIncrementalVersion}-SNAPSHOT \
+          mvn build-helper:parse-version versions:set \
+          -DnewVersion=${{ steps.semantic.outputs.new_release_version }}-SNAPSHOT \
           versions:commit
           git config --global user.name ${{ env.BOT_USERNAME }}
           git config --global user.email ${{ env.BOT_EMAIL }}
           git add -A
-          git commit -m "[ci skip] Incremented version for next release"
+          git commit -m "[ci skip] setup snapshot version for next release"
       - name: Push
+        if: steps.semantic.outputs.new_release_published == 'true'
         uses: pagopa/pdnd-github-actions/push-bot@v1.0.1
         with:
           token: ${{ secrets.PAT_BOT }}
           branch_name: ${{ github.ref }}
-          bot_name: ${{ env.BOT_USERNAME }}
-      - name: Set environment variable
-        run: echo "RELEASE_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+          bot_name: ${{ env.BOT_USERNAME }}     
     outputs:
-      release_tag: ${{ env.RELEASE_TAG }}
+      release_tag: ${{ steps.semantic.outputs.new_release_version }}
   destroy_runner:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     if: ${{ always() && !contains(needs.create_runner.result, 'failure') }}
     needs:
       - create_runner
@@ -101,10 +127,9 @@ jobs:
     steps:
       - name: Destroy Runner
         id: destroy_runner
-        uses: pagopa/pdnd-github-actions/undeploy-gh-runner@f2324991919536414cf6ecef62d1dbaeadea584e
+        uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@fb2dd07fda1de2db4868edd8d77f3eb2caff334c
         with:
-          api_server: ${{ vars.K8S_API_SERVER }}
-          access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
-          base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
+          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
           runner_label: ${{ needs.create_runner.outputs.runner_label }}
-          namespace: prod-github-runners
+          namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }}
