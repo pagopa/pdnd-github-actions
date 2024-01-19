@@ -40,7 +40,7 @@ jobs:
       - name: Get Release PR Number
         id: pr_number
         run: |
-          echo "RELEASE_PR_NUMBER=$(jq -r '.number' ${{ steps.release_please.outputs.pr }})" >> "$GITHUB_OUTPUT"
+          echo "RELEASE_PR_NUMBER=$(jq -r '.number' <<< ${{ steps.release_please.outputs.pr }})" >> "$GITHUB_OUTPUT"
       - name: Approve Release PR
         id: approve_pr
         uses: hmarr/auto-approve-action@v3
