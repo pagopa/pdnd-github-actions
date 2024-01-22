@@ -53,7 +53,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_BOT }}
           PULL_REQUEST: ${{ steps.pr_number.outputs.RELEASE_PR_NUMBER }}
-          MERGE_LABELS: ''
+          MERGE_LABELS: "autorelease: pending"
+          MERGE_METHOD: squash
+          MERGE_DELETE_BRANCH: true
+          MERGE_COMMIT_MESSAGE: "Automerge PR #${{ steps.pr_number.outputs.RELEASE_PR_NUMBER }} [skip ci]"
   destroy_runner:
     name: Destroy Runner
     runs-on: ubuntu-latest
