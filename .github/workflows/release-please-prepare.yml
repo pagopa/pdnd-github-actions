@@ -53,6 +53,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_BOT }}
           PULL_REQUEST: ${{ steps.pr_number.outputs.RELEASE_PR_NUMBER }}
+          MERGE_LABELS: ''
   destroy_runner:
     name: Destroy Runner
     runs-on: ubuntu-latest
