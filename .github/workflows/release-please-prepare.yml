@@ -47,6 +47,12 @@ jobs:
         with:
           pull-request-number: ${{ steps.pr_number.outputs.RELEASE_PR_NUMBER }}
           github-token: ${{ secrets.PAT_BOT }}
+      - name: Merge Release PR
+        id: merge_pr
+        uses: pascalgn/automerge-action
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_BOT }}
+          PULL_REQUEST: ${{ steps.pr_number.outputs.RELEASE_PR_NUMBER }}
   destroy_runner:
     name: Destroy Runner
     runs-on: ubuntu-latest
