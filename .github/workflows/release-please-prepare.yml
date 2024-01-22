@@ -46,6 +46,7 @@ jobs:
         uses: hmarr/auto-approve-action@v3
         with:
           pull-request-number: ${{ steps.pr_number.outputs.RELEASE_PR_NUMBER }}
+          github-token: ${{ secrets.PAT_BOT }}
   destroy_runner:
     name: Destroy Runner
     runs-on: ubuntu-latest
