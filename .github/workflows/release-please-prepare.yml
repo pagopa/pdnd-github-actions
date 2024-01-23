@@ -35,8 +35,6 @@ jobs:
       - name: Release-Please
         id: release_please
         uses: google-github-actions/release-please-action@v4
-        with:
-          target-branch: PA-695-Release-Please
       - name: Get Release PR Number
         id: pr_number
         run: |
