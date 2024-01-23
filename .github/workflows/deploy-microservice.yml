@@ -13,7 +13,7 @@ on:
         default: "module.deploy_api_gw"
         required: false
         type: string
-      application-version:
+      deploy-environment:
         required: true
         type: string
 
@@ -74,12 +74,13 @@ jobs:
         env:
           HELM_RELEASE: ${{ github.event.repository.name }}
           HELM_REPOSITORY: oci://688071769384.dkr.ecr.eu-central-1.amazonaws.com/charts/${{ github.event.repository.name }}
-          HELM_VALUES: .k8s/helm/${{ github.event.repository.name }}/values.yaml
+          HELM_DEFAULT_VALUES: .k8s/helm/values.yaml
+          HELM_ENV_VALUES: .k8s/helm/env-values/${{ inputs.deploy-environment }}.yaml
           HELM_CHART_VERSION: ${{ inputs.application-version }}
         run: |
           aws eks update-kubeconfig --region eu-central-1 --name ${{ inputs.eks-cluster }}
           export "HELM_NAMESPACE=$(yq -r '.namespace' $HELM_VALUES)"
-          helm upgrade --install $HELM_RELEASE $HELM_REPOSITORY --version $HELM_CHART_VERSION -f $HELM_VALUES
+          helm upgrade --install $HELM_RELEASE $HELM_REPOSITORY --version $HELM_CHART_VERSION -f $HELM_DEFAULT_VALUES -f $HELM_ENV_VALUES
       - name: Install OpenAPI python script dependencies
         id: openapi_dependencies
         run: pip install PyYAML==6.0
