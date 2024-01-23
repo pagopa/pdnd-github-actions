@@ -60,8 +60,8 @@ jobs:
           docker push $REGISTRY/$REPOSITORY:latest
       - name: Push Helm Chart to AWS ECR
         env:
-          CHART_VERSION: $(jq -r '.".k8s/helm/${{ github.event.repository.name }}"' .release-please-manifest.json)
-          APP_VERSION: $(jq -r '.".k8s/helm/${{ github.event.repository.name }}"' .release-please-manifest.json)
+          CHART_VERSION: $(jq -r '."."' .release-please-manifest.json)
+          APP_VERSION: $(jq -r '."."' .release-please-manifest.json)
           REGISTRY: ${{ steps.ecr_login.outputs.registry }}
           CHART: ${{ github.event.repository.name }}
         run: |
