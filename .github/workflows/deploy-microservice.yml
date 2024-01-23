@@ -68,7 +68,6 @@ jobs:
       - name: Login to AWS ECR
         id: ecr_login
         uses: aws-actions/amazon-ecr-login@v2
-        
       - name: Deploy to K8S via Helm
         id: helm_deploy
         env:
@@ -76,10 +75,11 @@ jobs:
           HELM_REPOSITORY: oci://688071769384.dkr.ecr.eu-central-1.amazonaws.com/charts/${{ github.event.repository.name }}
           HELM_DEFAULT_VALUES: .k8s/helm/values.yaml
           HELM_ENV_VALUES: .k8s/helm/env-values/${{ inputs.deploy-environment }}.yaml
-          HELM_CHART_VERSION: ${{ inputs.application-version }}
+          HELM_CHART_VERSION: ${{ github.ref_name }}
         run: |
           aws eks update-kubeconfig --region eu-central-1 --name ${{ inputs.eks-cluster }}
-          export "HELM_NAMESPACE=$(yq -r '.namespace' $HELM_VALUES)"
+          HELM_NAMESPACE=$(yq -r '.namespace' $HELM_VALUES)
+          [[ $HELM_CHART_VERSION = v* ]] && HELM_CHART_VERSION=${HELM_CHART_VERSION:1}
           helm upgrade --install $HELM_RELEASE $HELM_REPOSITORY --version $HELM_CHART_VERSION -f $HELM_DEFAULT_VALUES -f $HELM_ENV_VALUES
       - name: Install OpenAPI python script dependencies
         id: openapi_dependencies
