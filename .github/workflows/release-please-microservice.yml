@@ -1,15 +1,10 @@
-name: Release Microservice
+name: Release Please - Microservice
 on:
   workflow_call:
-    inputs:
-      repository-language:
-        required: true
-        type: string
 
 jobs:
   create_runner:
     name: Create Runner
-    if: github.ref_type == 'branch'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -28,28 +23,11 @@ jobs:
           docker_enabled: true
     outputs:
       runner_label: ${{ steps.create_runner.outputs.runner_label }}
-  get_version:
-    name: Get Application Version
-    runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
-    needs: create_runner
-    outputs:
-      app_version: ${{ steps.get_version.outputs.app_version }}
-    steps:
-      - name: Checkout
-        id: checkout
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
-      - name: Get Version (Python)
-        if: ${{ inputs.repository-language }} == 'python'
-        id: get_version
-        run: |
-          export "APP_VERSION=$(poetry version --short)"
-          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_OUTPUT"
   publish_artifacts:
     name: Publish Artifacts
     runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
     needs:
       - create_runner
-      - get_version
     steps:
       - name: Checkout
         id: checkout
@@ -72,7 +50,7 @@ jobs:
         env:
           REGISTRY: ${{ steps.ecr_login.outputs.registry }}
           REPOSITORY: ${{ github.event.repository.name }}
-          IMAGE_TAG: ${{ needs.get_version.outputs.app_version }}
+          IMAGE_TAG: $(jq -r '."."' .release-please-manifest.json)
           DOCKER_BUILDKIT: 1
         run: |
           docker build \
@@ -82,8 +60,8 @@ jobs:
           docker push $REGISTRY/$REPOSITORY:latest
       - name: Push Helm Chart to AWS ECR
         env:
-          CHART_VERSION: ${{ needs.get_version.outputs.app_version }}
-          APP_VERSION: ${{ needs.get_version.outputs.app_version }}
+          CHART_VERSION: $(jq -r '."."' .release-please-manifest.json)
+          APP_VERSION: $(jq -r '."."' .release-please-manifest.json)
           REGISTRY: ${{ steps.ecr_login.outputs.registry }}
           CHART: ${{ github.event.repository.name }}
         run: |
@@ -98,7 +76,6 @@ jobs:
     if: ${{ always() && !contains(needs.create_runner.result, 'failure') && !contains(needs.create_runner.result, 'skipped')}}
     needs:
       - create_runner
-      - get_version
       - publish_artifacts
     steps:
       - name: Destroy Runner
