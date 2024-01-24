@@ -65,7 +65,7 @@ jobs:
         run: |
           IMAGE_TAG=$(jq -r '."."' .release-please-manifest.json)
           LATEST_SHA=$(aws ecr describe-images --repository-name $REPOSITORY --image-ids imageTag=$IMAGE_TAG | jq -r '.[] | .[].imageDigest') \
-          yq e '.image.digest = env(LATEST_SHA)' -i .k8s/helm/$REPOSITORY/values.yaml
+          yq e '.image.digest = env(LATEST_SHA)' -i .k8s/helm/values.yaml
       - name: Push Helm Chart to AWS ECR
         env:
           REGISTRY: ${{ steps.ecr_login.outputs.registry }}
