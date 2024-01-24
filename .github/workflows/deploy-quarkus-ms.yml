@@ -57,8 +57,9 @@ jobs:
         env:
           K8S_APPLICATION_NAME: ${{ vars.K8S_APPLICATION_NAME }}
           K8S_SERVICE_ACCOUNT_NAME: ${{ vars.K8S_SERVICE_ACCOUNT_NAME }}
+          MS_K8S_NAMESPACE :  ${{ vars.MS_K8S_NAMESPACE }}
         run: |
-          cat src/main/kubernetes/kubernetes.yml | envsubst '$K8S_APPLICATION_NAME $K8S_SERVICE_ACCOUNT_NAME'  > src/main/kubernetes/kubernetes.yml.tmp
+          cat src/main/kubernetes/kubernetes.yml | envsubst '$K8S_APPLICATION_NAME $K8S_SERVICE_ACCOUNT_NAME $MS_K8S_NAMESPACE'  > src/main/kubernetes/kubernetes.yml.tmp
           mv src/main/kubernetes/kubernetes.yml.tmp src/main/kubernetes/kubernetes.yml
           cat src/main/resources/application.properties | envsubst '$HTTP_BASE_PATH' > src/main/resources/application.properties.tmp
           mv src/main/resources/application.properties.tmp src/main/resources/application.properties
@@ -107,7 +108,7 @@ jobs:
         run: |
           cd .infra/aws
           ./terraform.sh plan prod -target=module.deploy_api_gw
-          ./terraform.sh apply prod -auto-approve -target=module.deploy_api_gw
+          #./terraform.sh apply prod -auto-approve -target=module.deploy_api_gw
   destroy_runner:
     runs-on: ubuntu-latest
     permissions:
