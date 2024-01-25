@@ -46,7 +46,7 @@ jobs:
     steps:
       - name: Checkout
         id: checkout
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+        uses: actions/checkout@v4
       - name: Verify tag from release
         id: tag_release_verify
         run: |
