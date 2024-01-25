@@ -79,6 +79,7 @@ jobs:
         id: commit_values
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
+          branch: ${{ github.base_ref }}
           commit_message: "Autocommit: update helm value image.digest to latest"
   destroy_runner:
     name: Destroy Runner
