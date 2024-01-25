@@ -78,7 +78,7 @@ jobs:
           HELM_CHART_VERSION: ${{ github.ref_name }}
         run: |
           aws eks update-kubeconfig --region eu-central-1 --name ${{ inputs.eks-cluster }}
-          HELM_NAMESPACE=$(yq -r '.namespace' $HELM_VALUES)
+          HELM_NAMESPACE=$(yq -r '.namespace' $HELM_DEFAULT_VALUES)
           [[ $HELM_CHART_VERSION = v* ]] && HELM_CHART_VERSION=${HELM_CHART_VERSION:1}
           helm upgrade --install $HELM_RELEASE $HELM_REPOSITORY --version $HELM_CHART_VERSION -f $HELM_DEFAULT_VALUES -f $HELM_ENV_VALUES
       - name: Install OpenAPI python script dependencies
