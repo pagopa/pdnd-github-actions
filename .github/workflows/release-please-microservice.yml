@@ -81,6 +81,7 @@ jobs:
         with:
           branch: ${{ github.base_ref }}
           commit_message: "Autocommit: update helm value image.digest to latest"
+          file_pattern: '.k8s/helm/values.yaml'
   destroy_runner:
     name: Destroy Runner
     runs-on: ubuntu-latest
