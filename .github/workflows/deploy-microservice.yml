@@ -1,4 +1,4 @@
-name: Deploy Microservice
+name: Microservice - Deploy
 on:
   workflow_call:
     inputs:
