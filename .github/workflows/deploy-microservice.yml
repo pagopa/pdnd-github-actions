@@ -18,9 +18,8 @@ on:
         type: string
 
 jobs:
-  create_runner:
+  create-runner:
     name: Create Runner
-    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -35,7 +34,7 @@ jobs:
           aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
           namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
           image: ${{ vars.RUNNER_DOCKER_IMAGE }}
-          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
+          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}
           docker_enabled: true
     outputs:
       runner_label: ${{ steps.create_runner.outputs.runner_label }}
@@ -99,16 +98,13 @@ jobs:
         run: |
           cd .infra/aws
           sh ./terraform.sh apply prod -auto-approve -target=${{ inputs.deploy-apigw-module-name }}
-  destroy_runner:
+  destroy-runner:
     name: Destroy Runner
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
-    if: ${{ always() && !contains(needs.create_runner.result, 'failure') && !contains(needs.create_runner.result, 'skipped')}}
-    needs:
-      - create_runner
-      - deploy
+    if: ${{ always() && !contains(needs.create-runner.result, 'failure') && !contains(needs.create-runner.result, 'skipped')}}
     steps:
       - name: Destroy Runner
         id: destroy_runner
@@ -116,5 +112,5 @@ jobs:
         with:
           cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
           aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
-          runner_label: ${{ needs.create_runner.outputs.runner_label }}
+          runner_label: ${{ needs.create-runner.outputs.runner_label }}
           namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }}
