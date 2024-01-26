@@ -166,7 +166,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PAT_BOT }}
           PULL_REQUEST: ${{ needs.prepare-release.outputs.release_pr_number }}
           MERGE_LABELS: "autorelease: pending"
-          #MERGE_REMOVE_LABELS: "autorelease: pending"
           MERGE_METHOD: squash
           MERGE_DELETE_BRANCH: true
           MERGE_COMMIT_MESSAGE: "Automerge PR #${{ needs.prepare-release.outputs.release_pr_number }}"
@@ -176,16 +175,6 @@ jobs:
         with:
           skip-github-release: false
           skip-github-pull-request: false
-      # - name: Create GH Release
-      #   id: create_release
-      #   uses: mikepenz/action-gh-release@v0.4.1
-      #   with:
-      #     generate_release_notes: true
-      #     prerelease: false
-      #     target_commitish: ${{ github.base_ref }}
-      #     name: v${{ needs.build-microservice.outputs.release_version }}
-      #     tag_name: v${{ needs.build-microservice.outputs.release_version }}
-      #     token: ${{ secrets.PAT_BOT }}
       - name: Label Pull Request
         id: label_pr
         uses: actions/labeler@v5
