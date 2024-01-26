@@ -6,7 +6,7 @@ on:
         required: true
         type: string
       openapi-folder:
-        required: true
+        required: false
         type: string
       deploy-apigw-module-name:
         description: "TF module for the API deployment on AWS API Gateway"
