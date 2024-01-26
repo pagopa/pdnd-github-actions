@@ -9,7 +9,7 @@ on:
         required: true
         type: string
       deploy-apigw-module-name:
-        description: "The name of the module to apply for deploy the openapi on aws api gw"
+        description: "TF module for the API deployment on AWS API Gateway"
         default: "module.deploy_api_gw"
         required: false
         type: string
