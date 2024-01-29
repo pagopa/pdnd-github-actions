@@ -1,4 +1,4 @@
-name: Deploy Microservice
+name: Microservice - Deploy
 on:
   workflow_call:
     inputs:
@@ -6,10 +6,10 @@ on:
         required: true
         type: string
       openapi-folder:
-        required: true
+        required: false
         type: string
       deploy-apigw-module-name:
-        description: "The name of the module to apply for deploy the openapi on aws api gw"
+        description: "TF module for the API deployment on AWS API Gateway"
         default: "module.deploy_api_gw"
         required: false
         type: string
@@ -18,9 +18,8 @@ on:
         type: string
 
 jobs:
-  create_runner:
+  create-runner:
     name: Create Runner
-    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -35,53 +34,48 @@ jobs:
           aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
           namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
           image: ${{ vars.RUNNER_DOCKER_IMAGE }}
-          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
+          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}
           docker_enabled: true
     outputs:
       runner_label: ${{ steps.create_runner.outputs.runner_label }}
-  deploy:
-    name: Deploy to K8S and APIGW
-    runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
-    needs: create_runner
+  deploy-microservice:
+    name: Deploy to K8S
+    needs:
+      - create-runner
+    runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
     steps:
       - name: Checkout
         id: checkout
         uses: actions/checkout@v4
-      - name: Verify tag from release
-        id: tag_release_verify
+      - name: Verify tag
+        id: tag_verify
+        uses: nowsprinting/check-version-format-action@v3
+        with:
+          prefix: 'v'
+      - name: Get Target Namespace
+        id: deploy_namespace
         run: |
-          if git show-ref --verify refs/tags/${{ inputs.ref_name }} >/dev/null 2>&1; then
-            echo "TAG_EXISTS=true" >> $GITHUB_ENV
-          else
-            echo "TAG_EXISTS=false" >> $GITHUB_ENV
-          fi
-      - name: Verify tag from deploy
-        id: tag_deploy_verify
-        if: env.TAG_EXISTS == 'false'
-        run: |
-          if [[ "${{ startsWith(github.ref, 'refs/tags/v') }}" == "true" ]]; then
-          echo "It's a valid tag"
-          else
-          echo "The tag is not valid!"
-          exit 1 
-          fi  
-      - name: Login to AWS ECR
-        id: ecr_login
-        uses: aws-actions/amazon-ecr-login@v2
+          echo "deploy_namespace=$(yq -r '.namespace' .k8s/helm/values.yaml)" >> "$GITHUB_OUTPUT"
       - name: Deploy to K8S via Helm
         id: helm_deploy
         env:
           HELM_RELEASE: ${{ github.event.repository.name }}
-          HELM_REPOSITORY: oci://688071769384.dkr.ecr.eu-central-1.amazonaws.com/charts/${{ github.event.repository.name }}
+          HELM_REPOSITORY: .k8s/helm
           HELM_DEFAULT_VALUES: .k8s/helm/values.yaml
+          HELM_NAMESPACE: ${{ steps.deploy_namespace.outputs.deploy_namespace }}
           HELM_ENV_VALUES: .k8s/helm/env-values/${{ inputs.deploy-environment }}.yaml
-          HELM_CHART_VERSION: ${{ github.ref_name }}
         run: |
           aws eks update-kubeconfig --region eu-central-1 --name ${{ inputs.eks-cluster }}
-          HELM_NAMESPACE=$(yq -r '.namespace' $HELM_DEFAULT_VALUES)
-          [[ $HELM_CHART_VERSION = v* ]] && HELM_CHART_VERSION=${HELM_CHART_VERSION:1}
-          helm upgrade --install $HELM_RELEASE $HELM_REPOSITORY --version $HELM_CHART_VERSION -f $HELM_DEFAULT_VALUES -f $HELM_ENV_VALUES
-      - name: Install OpenAPI python script dependencies
+          helm upgrade --install $HELM_RELEASE $HELM_REPOSITORY -f $HELM_DEFAULT_VALUES -f $HELM_ENV_VALUES
+  deploy-openapi:
+    name: Deploy to API Gateway
+    if: ${{ inputs.openapi-folder != null && inputs.openapi-folder != '' }}
+    needs:
+      - create-runner
+      - deploy-microservice
+    runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
+    steps:
+      - name: Install PyYAML
         id: openapi_dependencies
         run: pip install PyYAML==6.0
       - name : Convert OpenAPI
@@ -99,16 +93,17 @@ jobs:
         run: |
           cd .infra/aws
           sh ./terraform.sh apply prod -auto-approve -target=${{ inputs.deploy-apigw-module-name }}
-  destroy_runner:
+  destroy-runner:
     name: Destroy Runner
     runs-on: ubuntu-latest
+    needs:
+      - create-runner
+      - deploy-microservice
+      - deploy-openapi
     permissions:
       id-token: write
       contents: read
-    if: ${{ always() && !contains(needs.create_runner.result, 'failure') && !contains(needs.create_runner.result, 'skipped')}}
-    needs:
-      - create_runner
-      - deploy
+    if: ${{ always() && !contains(needs.create-runner.result, 'failure') && !contains(needs.create-runner.result, 'skipped')}}
     steps:
       - name: Destroy Runner
         id: destroy_runner
@@ -116,5 +111,5 @@ jobs:
         with:
           cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
           aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
-          runner_label: ${{ needs.create_runner.outputs.runner_label }}
+          runner_label: ${{ needs.create-runner.outputs.runner_label }}
           namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }}
