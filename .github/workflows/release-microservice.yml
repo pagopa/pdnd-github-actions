@@ -1,0 +1,204 @@
+name: Microservice - Release
+on:
+  workflow_call:
+
+jobs:
+  create-runner:
+    name: Create Runner
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Create Runner
+        id: create_runner
+        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
+        with:
+          name: ${{ github.event.repository.name }}
+          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+          namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
+          image: ${{ vars.RUNNER_DOCKER_IMAGE }}
+          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}
+          docker_enabled: true
+    outputs:
+      runner_label: ${{ steps.create_runner.outputs.runner_label }}
+  prepare-release:
+    name: Prepare Release
+    needs:
+      - create-runner
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+      - name: Release-Please
+        id: release_please
+        uses: google-github-actions/release-please-action@v4
+        with:
+          skip-github-release: false
+          skip-github-pull-request: false
+      - name: Get Release PR Number
+        id: pr_number
+        run: |
+          echo "release_pr_number=$(jq -r '.number' <<< ${{ toJSON(steps.release_please.outputs.pr) }})" >> "$GITHUB_OUTPUT"
+      - name: Get Release PR Head Ref
+        id: pr_head
+        run: |
+          echo "release_pr_head=$(jq -r '.headBranchName' <<< ${{ toJSON(steps.release_please.outputs.pr) }})" >> "$GITHUB_OUTPUT"
+    outputs:
+      release_pr_number: ${{ steps.pr_number.outputs.release_pr_number }}
+      release_pr_head: ${{ steps.pr_head.outputs.release_pr_head }}
+  build-microservice:
+    name: Build Microservice
+    needs:
+      - create-runner
+      - prepare-release
+    runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.prepare-release.outputs.release_pr_head }}
+      - name: Get Release Version
+        id: release_version
+        run: |
+          echo "release_version=$(jq -r '."."' .release-please-manifest.json)" >> "$GITHUB_OUTPUT"
+      - name: Create AWS ECR Docker Registry
+        id: ecr_docker_registry
+        uses: pagopa/pdnd-github-actions/create-ecr-repository@74cf3f8abfacd6814b924408a11b02f177f8f5a3
+        with:
+          repositoryName: ${{ github.event.repository.name }}
+      - name: Create AWS ECR Helm Repository
+        id: ecr_helm_repository
+        uses: pagopa/pdnd-github-actions/create-ecr-repository@74cf3f8abfacd6814b924408a11b02f177f8f5a3
+        with:
+          repositoryName: charts/${{ github.event.repository.name }}
+      - name: Login to AWS ECR
+        id: ecr_login
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Publish Container Image to AWS ECR
+        id: docker_build
+        env:
+          IMAGE_TAG: ${{ steps.release_version.outputs.release_version }}
+          REGISTRY: ${{ steps.ecr_login.outputs.registry }}
+          REPOSITORY: ${{ github.event.repository.name }}
+          DOCKER_BUILDKIT: 1
+        run: |
+          docker build \
+              --build-arg DOCKER_REGISTRY_URI=$REGISTRY \
+              -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
+          docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
+          docker push $REGISTRY/$REPOSITORY:latest
+      - name: Get Image Digest
+        id: image_digest
+        env:
+          IMAGE_TAG: ${{ steps.release_version.outputs.release_version }}
+          REPOSITORY: ${{ github.event.repository.name }}
+        run: |
+          echo "image_digest=$(aws ecr describe-images --repository-name $REPOSITORY --image-ids imageTag=$IMAGE_TAG | jq -r '.[] | .[].imageDigest')" >> "$GITHUB_OUTPUT"
+      - name: Update Helm Chart
+        id: update_chart
+        env:
+          REPOSITORY: ${{ github.event.repository.name }}
+          IMAGE_TAG: ${{ steps.release_version.outputs.release_version }}
+          CHART_VERSION: ${{ steps.release_version.outputs.release_version }}
+          APP_VERSION: ${{ steps.release_version.outputs.release_version }}
+          IMAGE_DIGEST: ${{ steps.image_digest.outputs.image_digest }}
+        run: |
+          yq e '.image.digest = env(IMAGE_DIGEST)' -i .k8s/helm/values.yaml
+          yq e '.version = env(CHART_VERSION)' -i .k8s/helm/Chart.yaml
+          yq e '.appVersion = env(APP_VERSION)' -i .k8s/helm/Chart.yaml
+      - name: Push Helm Chart to AWS ECR
+        id: push_chart
+        env:
+          REGISTRY: ${{ steps.ecr_login.outputs.registry }}
+          CHART_VERSION: ${{ steps.release_version.outputs.release_version }}
+          APP_VERSION: ${{ steps.release_version.outputs.release_version }}
+          CHART: ${{ github.event.repository.name }}
+        run: |
+          helm package .k8s/helm --version $CHART_VERSION --app-version $APP_VERSION
+          helm push $CHART-$CHART_VERSION.tgz oci://$REGISTRY/charts
+      - name: Commit Helm Values
+        id: commit_values
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          branch: ${{ needs.prepare-release.outputs.release_pr_head }}
+          commit_message: "Autocommit: update image.digest and Helm versions"
+          file_pattern: '.k8s/helm/values.yaml .k8s/helm/Chart.yaml'
+    outputs:
+      release_version: ${{ steps.release_version.outputs.release_version }}
+  finalize-release:
+    name: Finalize Release
+    needs:
+      - create-runner
+      - prepare-release
+      - build-microservice
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+      - name: Approve Release PR
+        id: approve_pr
+        uses: hmarr/auto-approve-action@v3
+        with:
+          pull-request-number: ${{ needs.prepare-release.outputs.release_pr_number }}
+          github-token: ${{ secrets.PAT_BOT }}
+      - name: Merge Release PR
+        id: merge_pr
+        uses: pascalgn/automerge-action@v0.16.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_BOT }}
+          PULL_REQUEST: ${{ needs.prepare-release.outputs.release_pr_number }}
+          MERGE_LABELS: "autorelease: pending"
+          MERGE_METHOD: squash
+          MERGE_DELETE_BRANCH: true
+          MERGE_COMMIT_MESSAGE: "Automerge PR #${{ needs.prepare-release.outputs.release_pr_number }}"
+      - name: Release-Please
+        id: release_please
+        uses: google-github-actions/release-please-action@v4
+        with:
+          skip-github-release: false
+          skip-github-pull-request: false
+      - name: Label Pull Request
+        id: label_pr
+        uses: actions/labeler@v5
+        with:
+          pr-number: ${{ needs.prepare-release.outputs.release_pr_number }}
+          repo-token: ${{ secrets.PAT_BOT }}
+  destroy-runner:
+    name: Destroy Runner
+    runs-on: ubuntu-latest
+    needs:
+      - create-runner
+      - prepare-release
+      - build-microservice
+      - finalize-release
+    permissions:
+      id-token: write
+      contents: read
+    if: ${{ always() && !contains(needs.create-runner.result, 'failure') && !contains(needs.create-runner.result, 'skipped')}}
+    steps:
+      - name: Destroy Runner
+        id: destroy_runner
+        uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
+        with:
+          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+          runner_label: ${{ needs.create-runner.outputs.runner_label }}
+          namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }}
