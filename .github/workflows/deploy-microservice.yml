@@ -66,7 +66,7 @@ jobs:
           HELM_ENV_VALUES: .k8s/helm/env-values/${{ inputs.deploy-environment }}.yaml
         run: |
           aws eks update-kubeconfig --region eu-central-1 --name ${{ inputs.eks-cluster }}
-          helm upgrade --install $HELM_RELEASE $HELM_REPOSITORY -f $HELM_DEFAULT_VALUES -f $HELM_ENV_VALUES
+          helm upgrade --install $HELM_RELEASE $HELM_REPOSITORY -n $HELM_NAMESPACE --create-namespace -f $HELM_DEFAULT_VALUES -f $HELM_ENV_VALUES
   deploy-openapi:
     name: Deploy to API Gateway
     if: ${{ inputs.openapi-folder != null && inputs.openapi-folder != '' }}
