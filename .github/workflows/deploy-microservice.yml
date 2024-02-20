@@ -75,6 +75,9 @@ jobs:
       - deploy-microservice
     runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
     steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
       - name: Install PyYAML
         id: openapi_dependencies
         run: pip install PyYAML==6.0
