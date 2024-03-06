@@ -1,0 +1,33 @@
+name: "setup-cdp-cli"
+description: install and configure cloudera cdp cli
+inputs:
+  version:
+    required: true
+    description: "Version of cdp to install"
+  access_key_id:
+    required: true
+    description: "access key id"
+  private_key:
+    required: true
+    description: "private key"
+runs:
+  using: "composite"
+  steps:
+    - name: setup python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+    - name: Installation
+      run: |
+        pip install cdpcli==${{ inputs.version }}
+      shell: bash  
+    - name: Configuration
+      uses: DamianReeves/write-file-action@v1.3
+      with:
+        path: ${{ runner.home }}/.cdp/credentials
+        contents: |
+          [default]
+          cdp_access_key_id = ${{ inputs.access_key_id }}
+          cdp_private_key = ${{ inputs.private_key }}
+        write-mode: overwrite   
