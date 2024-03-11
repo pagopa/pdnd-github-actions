@@ -29,7 +29,7 @@ def include_dag(dag):
 def detect_dags_to_deploy():
     print(f"loading dags relative to this project...")
     auth = build_auth(credentials)
-    response = requests.get(base_url + f"/dags", auth=auth)
+    response = requests.get(base_url + f"/dags", auth=auth, verify=False)
     response.raise_for_status()
     json_res = response.json()
     actual_dags = list(filter(lambda dag: include_dag(dag), json_res["dags"]))
@@ -41,7 +41,7 @@ def dag_has_instance_in_status(dag_name, status , credentials):
         print(f"checking if there is a dag : {dag_name} instance in status : {status}...")
         auth = build_auth(credentials)
         params = {'order_by': '-end_date', 'limit': 1}
-        response = requests.get(base_url + f"/dags/{dag_name}/dagRuns", auth=auth , params=params)
+        response = requests.get(base_url + f"/dags/{dag_name}/dagRuns", auth=auth , params=params, verify=False)
         response.raise_for_status()
         runs = response.json()
         for run in runs['dag_runs']:
@@ -55,13 +55,13 @@ def dag_has_instance_in_status(dag_name, status , credentials):
 
 def is_dag_in_pause(dag_name,  credentials):
     print(f"checking if {dag_name} is in pause...")
-    response = requests.get( base_url + f"/dags/{dag_name}", auth=build_auth(credentials))
+    response = requests.get( base_url + f"/dags/{dag_name}", auth=build_auth(credentials), verify=False)
     response.raise_for_status()
     dag = response.json()
     return dag["is_paused"] == True   
 
 def change_dag_pause_state(dag_name, to_pause, credentials):
-    response = requests.patch( base_url + f"/dags/{dag_name}",json={"is_paused" : to_pause},auth=build_auth(credentials))
+    response = requests.patch( base_url + f"/dags/{dag_name}",json={"is_paused" : to_pause},auth=build_auth(credentials), verify=False)
     response.raise_for_status()
     print(f"dag {dag_name} paused == {to_pause}")
 
