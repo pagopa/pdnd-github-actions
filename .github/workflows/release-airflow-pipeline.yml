@@ -85,7 +85,7 @@ jobs:
             docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
             docker push $REGISTRY/$REPOSITORY:latest
         - name: Deploy Airflow dags
-          uses: pagopa/pdnd-github-actions/deploy-airflow-dags@1d69db82abb736b2301a636a6de243c9bb4505c3
+          uses: pagopa/pdnd-github-actions/deploy-airflow-dags@7997b1cb62acb940ec9e7047feefdbc977e6b025
           with:
             project: ${{ github.event.repository.name }}
             version: ${{ steps.version.outputs.full }}
