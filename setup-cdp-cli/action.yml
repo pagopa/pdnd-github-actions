@@ -13,12 +13,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: setup python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-        cache: 'pip'
-    - name: Installation
+    - name: Install CDP CLI
       run: |
         pip install cdpcli==${{ inputs.version }}
       shell: bash  
