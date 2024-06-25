@@ -1,22 +1,43 @@
 name: "setup-cde-cli"
 description: install and configure cloudera cde cli
 inputs:
+  version:
+    required: true
+    description: "Version of cde to install"
   access_key_id:
     required: true
     description: "access key id"
   private_key:
     required: true
     description: "private key"
+  codeartifact_domain:
+    required: true
+    description: "CodeArtifact domain"
+  codeartifact_domain_owner:
+    required: true
+    description: "CodeArtifact domain owner ID"
+  codeartifact_repository:
+    required: true
+    description: "CodeArtifact repository name"
 runs:
   using: "composite"
   steps:
+    - name: AWS CodeArtifact Login
+      run: |
+        aws codeartifact login --tool pip --repository ${{ inputs.codeartifact_repository }} --domain ${{ inputs.codeartifact_domain }} --domain-owner ${{ inputs.codeartifact_domain_owner }}
+      shell: bash
     - name: Set Up CDE CLI
       run: |
-        echo "pippo"
-        pwd
-        ls -la
-        chmod +x cde
-        sudo cp cde /usr/local/bin/cde
+        aws codeartifact get-package-version-asset \
+            --domain ${{ inputs.codeartifact_domain }} \
+            --repository ${{ inputs.codeartifact_repository }} \
+            --format generic \
+            --namespace cli \
+            --package cde \
+            --package-version ${{ inputs.version }} \
+            --asset cde cde
+        chmod +x ./cde
+        sudo cp ./cde /usr/local/bin/cde
       shell: bash  
     - name: Configuration
       uses: DamianReeves/write-file-action@v1.3

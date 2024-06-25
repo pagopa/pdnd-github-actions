@@ -7,8 +7,13 @@ This installs and configure the cloudera cde on the current runner
       - name: setup cdp cli
         uses: pagopa/pdnd-github-actions/setup-cde-cli@version
         with:
+          version: "1.20.3"
           access_key_id: "<>"
           private_key: "<>"
+          codeartifact_domain: "<>"
+          codeartifact_domain_owner: 
+          codeartifact_repository: "<>"
+
 ```
 ## Inputs
 You can customize the following parameters:

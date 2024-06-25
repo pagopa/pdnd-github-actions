@@ -2,33 +2,21 @@ name: Test Setup CDE CLI
 
 on: push
   
-
 jobs:
   test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Debug
-        run: |
-          pwd
-          ls -la
-          cd ..
-          pwd
-          ls -la
-
       - name: Setup CDE CLI
-        #uses: ../../setup-cde-cli
         uses: pagopa/pdnd-github-actions/setup-cde-cli@PA-1167
         with:
-        #  version: "1.0.0"
+          version: "1.20.3"
           access_key_id: ${{ secrets.ACCESS_KEY_ID }}
           private_key: ${{ secrets.PRIVATE_KEY }}
-
+          codeartifact_domain: ${{ vars.CODEARTIFACT_DOMAIN }} 
+          codeartifact_domain_owner: ${{ secrets.AWS_ACCOUNT_ID }}
+          codeartifact_repository: ${{ vars.CODEARTIFACT_INTERNAL_REPO }} 
       - name: Verify CDE CLI installation
         run: |
           cde --version
