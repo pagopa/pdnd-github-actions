@@ -15,8 +15,8 @@ runs:
         echo "pippo"
         pwd
         ls -la
-        chmod +x ../setup-cde-cli/cde
-        sudo cp ../setup-cde-cli/cde /usr/local/bin/cde
+        chmod +x cde
+        sudo cp cde /usr/local/bin/cde
       shell: bash  
     - name: Configuration
       uses: DamianReeves/write-file-action@v1.3
