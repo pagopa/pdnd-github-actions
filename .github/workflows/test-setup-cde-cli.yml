@@ -1,10 +1,7 @@
 name: Test Setup CDE CLI
 
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - PA-1167
+on: push
+  
 
 jobs:
   test:
@@ -12,15 +9,26 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Setup CDE CLI
-        uses: ../actions/setup-cde-cli
+        uses: actions/checkout@v4
         with:
-        #  version: "1.0.0"
-          access_key_id: ${{ secrets.ACCESS_KEY_ID }}
-          private_key: ${{ secrets.PRIVATE_KEY }}
+          fetch-depth: 2
 
-      - name: Verify CDE CLI installation
+      - name: Debug
         run: |
-          cde --version
+          pwd
+          ls -la
+          cd ..
+          pwd
+          ls -la
+
+      #- name: Setup CDE CLI
+      #  uses: ../../setup-cde-cli/action.yml
+      #  #uses: pagopa/pdnd-github-actions/setup-cde-cli@PA-1167
+      #  with:
+      #  #  version: "1.0.0"
+      #    access_key_id: ${{ secrets.ACCESS_KEY_ID }}
+      #    private_key: ${{ secrets.PRIVATE_KEY }}
+#
+      #- name: Verify CDE CLI installation
+      #  run: |
+      #    cde --version

@@ -12,8 +12,11 @@ runs:
   steps:
     - name: Set Up CDE CLI
       run: |
-        chmod +x .github/setup-cde-cli/cde
-        sudo cp .github/setup-cde-cli/cde /usr/local/bin/cde
+        echo "pippo"
+        pwd
+        ls -la
+        chmod +x ../setup-cde-cli/cde
+        sudo cp ../setup-cde-cli/cde /usr/local/bin/cde
       shell: bash  
     - name: Configuration
       uses: DamianReeves/write-file-action@v1.3
