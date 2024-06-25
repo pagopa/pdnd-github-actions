@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v2
       - name: Setup CDE CLI
         uses: pagopa/pdnd-github-actions/setup-cde-cli@PA-1167
         with:
