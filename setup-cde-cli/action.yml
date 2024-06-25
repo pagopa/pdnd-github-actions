@@ -1,0 +1,26 @@
+name: "setup-cde-cli"
+description: install and configure cloudera cde cli
+inputs:
+  access_key_id:
+    required: true
+    description: "access key id"
+  private_key:
+    required: true
+    description: "private key"
+runs:
+  using: "composite"
+  steps:
+    - name: Set Up CDE CLI
+      run: |
+        chmod +x .github/setup-cde-cli/cde
+        sudo cp .github/setup-cde-cli/cde /usr/local/bin/cde
+      shell: bash  
+    - name: Configuration
+      uses: DamianReeves/write-file-action@v1.3
+      with:
+        path: /home/runner/.cde/credentials
+        contents: |
+          [default]
+          cde_access_key_id = ${{ inputs.access_key_id }}
+          cde_private_key = ${{ inputs.private_key }}
+        write-mode: overwrite

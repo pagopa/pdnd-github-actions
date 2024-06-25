@@ -1,0 +1,26 @@
+name: Test Setup CDE CLI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - PA-1167
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Setup CDE CLI
+        uses: ../actions/setup-cde-cli
+        with:
+        #  version: "1.0.0"
+          access_key_id: ${{ secrets.ACCESS_KEY_ID }}
+          private_key: ${{ secrets.PRIVATE_KEY }}
+
+      - name: Verify CDE CLI installation
+        run: |
+          cde --version
