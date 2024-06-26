@@ -34,7 +34,12 @@ runs:
             --asset cde cde
         chmod +x ./cde
         sudo mv ./cde /usr/local/bin/cde
-      shell: bash  
+      shell: bash
+    - name: Set CDE credentials
+      run: |
+        echo "CDE_ACCESS_KEY_ID=${{ inputs.access_key_id}}" >> $GITHUB_ENV
+        echo "CDE_ACCESS_KEY_SECRET=${{ inputs.private_key}}" >> $GITHUB_ENV
+      shell: bash
     - name: Profile Config
       uses: DamianReeves/write-file-action@v1.3
       with:
