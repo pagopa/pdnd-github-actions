@@ -38,11 +38,11 @@ runs:
     - name: Credentials Config
       uses: DamianReeves/write-file-action@v1.3
       with:
-        path: ./credentials
+        path: /home/runner/.cdp/credentials
         contents: |
           [default]
-          cde_access_key_id = ${{ inputs.access_key_id }}
-          cde_private_key= ${{ inputs.private_key }}
+          cdp_access_key_id = ${{ inputs.access_key_id }}
+          cdp_private_key = ${{ inputs.private_key }}
         write-mode: overwrite 
     - name: Profile Config
       uses: DamianReeves/write-file-action@v1.3
