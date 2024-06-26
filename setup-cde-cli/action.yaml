@@ -47,8 +47,7 @@ runs:
     - name: Profile Config
       uses: DamianReeves/write-file-action@v1.3
       with:
-        path: ~/.cde/config.yaml
+        path: /home/runner/.cde/config.yaml
         contents: |
           vcluster-endpoint: ${{ inputs.vcluster_endpoint }}
         write-mode: overwrite 
-
