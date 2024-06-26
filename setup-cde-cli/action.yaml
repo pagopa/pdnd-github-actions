@@ -38,7 +38,7 @@ runs:
     - name: Credentials Config
       uses: DamianReeves/write-file-action@v1.3
       with:
-        path: ~/.cde/credentials
+        path: /home/runner/.cde/credentials
         contents: |
           [default]
           cde_access_key_id  = ${{ inputs.access_key_id }}
