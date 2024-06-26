@@ -41,8 +41,8 @@ runs:
         path: /home/runner/.cde/credentials
         contents: |
           [default]
-          cde_access_key_id  = ${{ inputs.access_key_id }}
-          cde_private_key  = ${{ inputs.private_key }}
+          cde_access_key_id: ${{ inputs.access_key_id }}
+          cde_private_key: ${{ inputs.private_key }}
         write-mode: overwrite 
     - name: Profile Config
       uses: DamianReeves/write-file-action@v1.3
@@ -50,4 +50,5 @@ runs:
         path: /home/runner/.cde/config.yaml
         contents: |
           vcluster-endpoint: ${{ inputs.vcluster_endpoint }}
+          credentials_file = /home/runner/.cde/credentials
         write-mode: overwrite 
