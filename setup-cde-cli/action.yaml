@@ -13,19 +13,15 @@ inputs:
   codeartifact_domain:
     required: true
     description: "CodeArtifact domain"
-  codeartifact_domain_owner:
-    required: true
-    description: "CodeArtifact domain owner ID"
   codeartifact_repository:
     required: true
     description: "CodeArtifact repository name"
+  vcluster_endpoint:
+    required: true
+    description: "vcluster-endpoint url"
 runs:
   using: "composite"
   steps:
-    - name: AWS CodeArtifact Login
-      run: |
-        aws codeartifact login --tool pip --repository ${{ inputs.codeartifact_repository }} --domain ${{ inputs.codeartifact_domain }} --domain-owner ${{ inputs.codeartifact_domain_owner }}
-      shell: bash
     - name: Set Up CDE CLI
       run: |
         aws codeartifact get-package-version-asset \
@@ -37,7 +33,7 @@ runs:
             --package-version ${{ inputs.version }} \
             --asset cde cde
         chmod +x ./cde
-        sudo cp ./cde /usr/local/bin/cde
+        sudo mv ./cde /usr/local/bin/cde
       shell: bash  
     - name: Configuration
       uses: DamianReeves/write-file-action@v1.3
@@ -47,4 +43,5 @@ runs:
           [default]
           cde_access_key_id = ${{ inputs.access_key_id }}
           cde_private_key = ${{ inputs.private_key }}
+          vcluster-endpoint: ${{ inputs.vcluster_endpoint }}
         write-mode: overwrite
