@@ -50,5 +50,5 @@ runs:
         path: /home/runner/.cde/config.yaml
         contents: |
           vcluster-endpoint: ${{ inputs.vcluster_endpoint }}
-          credentials_file = /home/runner/.cde/credentials
+          credentials_file: /home/runner/.cde/credentials
         write-mode: overwrite 
