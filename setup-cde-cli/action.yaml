@@ -23,9 +23,6 @@ runs:
   using: "composite"
   steps:
     - name: Set Up CDE CLI
-      env:
-          CDE_ACCESS_KEY_ID: ${{ inputs.access_key_id }}
-          CDE_ACCESS_KEY_SECRET: ${{ inputs.private_key }}
       run: |
         aws codeartifact get-package-version-asset \
             --domain ${{ inputs.codeartifact_domain }} \
