@@ -35,7 +35,7 @@ runs:
         chmod +x ./cde
         sudo mv ./cde /usr/local/bin/cde
       shell: bash  
-    - name: Configuration
+    - name: Credentials Config
       uses: DamianReeves/write-file-action@v1.3
       with:
         path: /home/runner/.cde/credentials
@@ -43,5 +43,12 @@ runs:
           [default]
           cde_access_key_id = ${{ inputs.access_key_id }}
           cde_private_key = ${{ inputs.private_key }}
+        write-mode: overwrite 
+    - name: Profile Config
+      uses: DamianReeves/write-file-action@v1.3
+      with:
+        path: ~/.cde/config.yaml
+        contents: |
           vcluster-endpoint: ${{ inputs.vcluster_endpoint }}
-        write-mode: overwrite
+        write-mode: overwrite 
+
