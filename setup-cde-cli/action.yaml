@@ -23,6 +23,9 @@ runs:
   using: "composite"
   steps:
     - name: Set Up CDE CLI
+      env:
+          CDE_ACCESS_KEY_ID: ${{ inputs.access_key_id }}
+          CDE_ACCESS_KEY_SECRET: ${{ inputs.private_key }}
       run: |
         aws codeartifact get-package-version-asset \
             --domain ${{ inputs.codeartifact_domain }} \
@@ -35,20 +38,10 @@ runs:
         chmod +x ./cde
         sudo mv ./cde /usr/local/bin/cde
       shell: bash  
-    - name: Credentials Config
-      uses: DamianReeves/write-file-action@v1.3
-      with:
-        path: /home/runner/.cde/credentials
-        contents: |
-          [default]
-          cde_access_key_id: ${{ inputs.access_key_id }}
-          cde_private_key: ${{ inputs.private_key }}
-        write-mode: overwrite 
     - name: Profile Config
       uses: DamianReeves/write-file-action@v1.3
       with:
         path: /home/runner/.cde/config.yaml
         contents: |
           vcluster-endpoint: ${{ inputs.vcluster_endpoint }}
-          credentials_file: /home/runner/.cde/credentials
         write-mode: overwrite 
