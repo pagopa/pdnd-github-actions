@@ -1,0 +1,53 @@
+name: "setup-cde-cli"
+description: install and configure cloudera cde cli
+inputs:
+  version:
+    required: true
+    description: "Version of cde to install"
+  access_key_id:
+    required: true
+    description: "access key id"
+  private_key:
+    required: true
+    description: "private key"
+  codeartifact_domain:
+    required: true
+    description: "CodeArtifact domain"
+  codeartifact_repository:
+    required: true
+    description: "CodeArtifact repository name"
+  vcluster_endpoint:
+    required: true
+    description: "vcluster-endpoint url"
+runs:
+  using: "composite"
+  steps:
+    - name: Set Up CDE CLI
+      run: |
+        aws codeartifact get-package-version-asset \
+            --domain ${{ inputs.codeartifact_domain }} \
+            --repository ${{ inputs.codeartifact_repository }} \
+            --format generic \
+            --namespace cli \
+            --package cde \
+            --package-version ${{ inputs.version }} \
+            --asset cde cde
+        chmod +x ./cde
+        sudo mv ./cde /usr/local/bin/cde
+      shell: bash  
+    - name: Credentials Config
+      uses: DamianReeves/write-file-action@v1.3
+      with:
+        path: /home/runner/.cdp/credentials
+        contents: |
+          [default]
+          cdp_access_key_id = ${{ inputs.access_key_id }}
+          cdp_private_key = ${{ inputs.private_key }}
+        write-mode: overwrite 
+    - name: Profile Config
+      uses: DamianReeves/write-file-action@v1.3
+      with:
+        path: /home/runner/.cde/config.yaml
+        contents: |
+          vcluster-endpoint: ${{ inputs.vcluster_endpoint }}
+        write-mode: overwrite 
