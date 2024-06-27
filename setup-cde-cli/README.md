@@ -22,4 +22,4 @@ You can customize the following parameters:
 | private_key | **required** | your user private key
 | codeartifact_domain | **required** | your codeartifact domain
 | codeartifact_repository | **required** | your codeartifact repository
-| vcluster-endpoint | **required** | your vcluster-endpoint url
+| vcluster-endpoint | **optional** | your vcluster-endpoint url
