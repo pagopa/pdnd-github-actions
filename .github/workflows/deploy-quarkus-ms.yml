@@ -37,18 +37,18 @@ jobs:
       - create_runner
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
         with:
           ref: ${{ inputs.ref_name }}
           persist-credentials: false
       - name: Cache Maven packages
-        uses: actions/cache@v3
+        uses: actions/cache@e12d46a63a90f2fae62d114769bbf2a179198b5c # v3
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2
           restore-keys: ${{ runner.os }}-m2
       - name : Setup python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@65d7f2d534ac1bc67fcd62888c5f4f3d2cb2b236 # v4
         with:
           python-version: '3.9'
           cache: 'pip'
@@ -66,12 +66,12 @@ jobs:
           VERSION="${{ github.ref_name }}"
           echo "VERSION=${VERSION:1}" >> $GITHUB_ENV
       - name: setup-git-credentials
-        uses: de-vri-es/setup-git-credentials@v2.0.10
+        uses: de-vri-es/setup-git-credentials@162b9dfe472513ee2960f0c97dd3cbbe80319b68 # v2.0.10
         with:
           credentials: https://pdnd-pagopa-github-bot:${{ secrets.PAT_BOT }}@github.com/
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2    
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2    
       - name: Generating k8s yml
         run: mvn package
           -Dquarkus.kubernetes.ingress.expose=true

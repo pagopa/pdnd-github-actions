@@ -18,7 +18,7 @@ runs:
         pip install cdpcli==${{ inputs.version }}
       shell: bash  
     - name: Configuration
-      uses: DamianReeves/write-file-action@v1.3
+      uses: DamianReeves/write-file-action@6929a9a6d1807689191dcc8bbe62b54d70a32b42 # v1.3
       with:
         path: /home/runner/.cdp/credentials
         contents: |

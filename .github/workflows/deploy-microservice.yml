@@ -46,7 +46,7 @@ jobs:
     steps:
       - name: Checkout
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
       - name: Verify tag
         id: tag_verify
         uses: nowsprinting/check-version-format-action@v3
@@ -77,7 +77,7 @@ jobs:
     steps:
       - name: Checkout
         id: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
       - name: Install PyYAML
         id: openapi_dependencies
         run: pip install PyYAML==6.0
@@ -88,7 +88,7 @@ jobs:
           python3 /tmp/openapi_integration.py -i ${{ inputs.openapi-folder }}/openapi.yaml -o ${{ vars.AWS_OPENAPI_PATH }}
       - name: Setup Git Credentials
         id: openapi_git_credentials
-        uses: de-vri-es/setup-git-credentials@v2.0.10
+        uses: de-vri-es/setup-git-credentials@162b9dfe472513ee2960f0c97dd3cbbe80319b68 # v2.0.10
         with:
           credentials: https://pdnd-pagopa-github-bot:${{ secrets.PAT_BOT }}@github.com/
       - name : Deploy OpenAPI
