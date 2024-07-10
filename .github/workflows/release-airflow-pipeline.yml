@@ -64,7 +64,7 @@ jobs:
             repositoryName: ${{ github.event.repository.name }}
         - name: Login to Amazon ECR
           id: login-ecr
-          uses: aws-actions/amazon-ecr-login@v2
+          uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2
         - name: Login to code artifact
           run: |
             CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain ${{ vars.CODEARTIFACT_DOMAIN }} --domain-owner ${{ secrets.AWS_ACCOUNT_ID }} \
