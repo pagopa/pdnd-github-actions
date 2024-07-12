@@ -18,7 +18,7 @@ runs:
   using: "composite"
   steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
     - name: Install OpenVPN
       run: |
         sudo apt update
@@ -43,7 +43,7 @@ runs:
         CLIENT_FILE_LOCATION: ${{ inputs.CLIENT_FILE_LOCATION }}
 
     - name: Connect to VPN
-      uses: "kota65535/github-openvpn-connect-action@v2"
+      uses: "kota65535/github-openvpn-connect-action@a582825650e2e4101d4e32fa210e2a0a87c7b0ef" # v2
       with:
         config_file:  ${{ inputs.CLIENT_FILE_LOCATION }}
         username: ${{ inputs.OVPN_USERNAME }}
