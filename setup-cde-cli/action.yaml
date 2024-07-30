@@ -31,7 +31,8 @@ runs:
             --namespace cli \
             --package cde \
             --package-version ${{ inputs.version }} \
-            --asset cde cde
+            --asset cde cde \
+            --no-cli-pager
         chmod +x ./cde
         sudo mv ./cde /usr/local/bin/cde
       shell: bash  
