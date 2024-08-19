@@ -49,7 +49,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
       - name: Verify tag
         id: tag_verify
-        uses: nowsprinting/check-version-format-action@v3
+        uses: nowsprinting/check-version-format-action@de7dcbd404b253dd775262e49c9924fa834e17a2 # v4.0.3
         with:
           prefix: 'v'
       - name: Get Target Namespace
@@ -88,7 +88,7 @@ jobs:
           python3 /tmp/openapi_integration.py -i ${{ inputs.openapi-folder }}/openapi.yaml -o ${{ vars.AWS_OPENAPI_PATH }}
       - name: Setup Git Credentials
         id: openapi_git_credentials
-        uses: de-vri-es/setup-git-credentials@162b9dfe472513ee2960f0c97dd3cbbe80319b68 # v2.0.10
+        uses: de-vri-es/setup-git-credentials@5e1f18da68b7039c7f824408d170811aaec93ca8 # v2.1.2
         with:
           credentials: https://pdnd-pagopa-github-bot:${{ secrets.PAT_BOT }}@github.com/
       - name : Deploy OpenAPI
