@@ -38,25 +38,18 @@ runs:
       shell: bash
     - name: Ensure Directories Exist with Correct Permissions
       run: |
-        echo $HOME
         mkdir -p $HOME/.cdp
         mkdir -p $HOME/.cde
         chmod 700 $HOME/.cdp
         chmod 700 $HOME/.cde
       shell: bash
-    - name: Credentials Config
-      uses: DamianReeves/write-file-action@6929a9a6d1807689191dcc8bbe62b54d70a32b42 # v1.3
-      with:
-        path: $HOME/.cdp/credentials
-        contents: |
-          [default]
-          cdp_access_key_id = ${{ inputs.access_key_id }}
-          cdp_private_key = ${{ inputs.private_key }}
-        write-mode: overwrite 
-    - name: Profile Config
-      uses: DamianReeves/write-file-action@6929a9a6d1807689191dcc8bbe62b54d70a32b42 # v1.3
-      with:
-        path: $HOME/.cde/config.yaml
-        contents: |
-          vcluster-endpoint: ${{ inputs.vcluster_endpoint }}
-        write-mode: overwrite 
+    - name: Write Credentials Config
+      run: |
+        echo "[default]" > $HOME/.cdp/credentials
+        echo "cdp_access_key_id = ${{ inputs.access_key_id }}" >> $HOME/.cdp/credentials
+        echo "cdp_private_key = ${{ inputs.private_key }}" >> $HOME/.cdp/credentials
+      shell: bash
+    - name: Write Profile Config
+      run: |
+        echo "vcluster-endpoint: ${{ inputs.vcluster_endpoint }}" > $HOME/.cde/config.yaml
+      shell: bash
