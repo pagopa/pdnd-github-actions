@@ -39,7 +39,7 @@ runs:
     - name: Credentials Config
       uses: DamianReeves/write-file-action@6929a9a6d1807689191dcc8bbe62b54d70a32b42 # v1.3
       with:
-        path: ${{env.home}}/.cdp/credentials
+        path: ${{ env.HOME }}/.cdp/credentials
         contents: |
           [default]
           cdp_access_key_id = ${{ inputs.access_key_id }}
@@ -48,7 +48,7 @@ runs:
     - name: Profile Config
       uses: DamianReeves/write-file-action@6929a9a6d1807689191dcc8bbe62b54d70a32b42 # v1.3
       with:
-        path: ${{env.home}}/.cde/config.yaml
+        path: ${{env.HOME }}/.cde/config.yaml
         contents: |
           vcluster-endpoint: ${{ inputs.vcluster_endpoint }}
         write-mode: overwrite 
