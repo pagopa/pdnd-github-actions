@@ -36,7 +36,7 @@ jobs:
             contents: read
       needs: create_runner
       steps:
-        - uses: nowsprinting/check-version-format-action@447b28744b1b954470f128d1d86ff636164c87c1
+        - uses: nowsprinting/check-version-format-action@de7dcbd404b253dd775262e49c9924fa834e17a2 # v4.0.31
           id: version
           with:
             prefix: 'v'
@@ -46,7 +46,7 @@ jobs:
                 echo "Version: ${{github.ref_name}} is not valid!"
                 exit 1
         - name: Check out the repo
-          uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9
+          uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
         - name: Set S3 url from input
           if: inputs.s3_url != ''
           run: |
