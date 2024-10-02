@@ -37,7 +37,7 @@ jobs:
         id: checkout
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
         with:
-          ref: ${{ github.base_ref }}
+          ref: ${{ github.base_ref != '' && github.base_ref || github.ref }}
       - name: Release-Please
         id: release_please
         uses: googleapis/release-please-action@7987652d64b4581673a76e33ad5e98e3dd56832f # v4.1.3
