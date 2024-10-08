@@ -122,35 +122,11 @@ jobs:
     outputs:
       poetry_token: ${{ steps.login-poetry.outputs.POETRY_HTTP_BASIC_ARTIFACT_PASSWORD }}
       docker_password: ${{ steps.login-ecr.outputs.ECR_PASSWORD }}
-  pre-release:
-    name: Pre Release
-    runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
-    needs: 
-      - create-runner
-      - login-poetry
-    outputs:
-      version: ${{ steps.pre-release.outputs.tag }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Python Semantic Release
-        id: pre-release
-        uses: python-semantic-release/python-semantic-release@v9.8.8
-        with:
-          directory: ${{ inputs.working-dir }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          push: "false"
-          tag: "true"
-      - name: Check Calculated Version Output
-        run: |
-          echo "New Release Version: ${{ steps.pre-release.outputs.tag }}"
   build-venv:
     name: Build Env
     needs:
       - create-runner
       - login-poetry 
-      - pre-release
     runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
     container:
       image: ${{ vars.CDE_RUNTIME_IMAGE }}
@@ -164,7 +140,6 @@ jobs:
         POETRY_HTTP_BASIC_ARTIFACT_PASSWORD: ${{ needs.login-poetry.outputs.poetry_token }}
     env:
       POETRY_HTTP_BASIC_ARTIFACT_PASSWORD: ${{ needs.login-poetry.outputs.poetry_token }}
-      VERSION: ${{ needs.pre-release.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -194,31 +169,34 @@ jobs:
     needs:
       - create-runner
       - login-poetry
-      - pre-release
       - build-venv
+    outputs:
+      version: ${{ steps.release.outputs.tag }}
     if: needs.build-venv.result == 'success'
     steps:
-      - run: echo "Releasing version ${{ needs.pre-release.outputs.version }}"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Final Semantic Release
         uses: python-semantic-release/python-semantic-release@v9.8.8
+        id: release
         with:
           directory: ${{ inputs.working-dir }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           commit: "true"
           push: "true"
           tag: "true"
+      - name: Check Calculated Version Output
+        run: |
+          echo "New Release Version: ${{ steps.release.outputs.tag }}"
   deploy:
     name: Deploy
     runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
     env:
-      VERSION: ${{ needs.pre-release.outputs.version }}
+      VERSION: ${{ needs.release.outputs.version }}
     needs:
       - create-runner
       - login-poetry
-      - pre-release
       - build-venv
       - release
     steps:
@@ -370,7 +348,6 @@ jobs:
     needs:
       - create-runner
       - login-poetry
-      - pre-release
       - build-venv
       - release
       - deploy
