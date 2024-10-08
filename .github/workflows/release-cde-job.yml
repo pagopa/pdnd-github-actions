@@ -141,7 +141,7 @@ jobs:
     env:
       POETRY_HTTP_BASIC_ARTIFACT_PASSWORD: ${{ needs.login-poetry.outputs.poetry_token }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
         with:
           fetch-depth: 0
       - name: Build Project
@@ -158,7 +158,7 @@ jobs:
           poetry run pip install venv-pack2
           poetry run venv-pack -o ${{ inputs.job-name }}.tar.gz
       - name: Upload Build Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@604373da6381bf24206979c74d06a550515601b9 # v4
         with:
           name: build-artifact
           path: ${{ inputs.working-dir }}/${{ inputs.job-name }}.tar.gz
@@ -174,7 +174,7 @@ jobs:
       version: ${{ steps.release.outputs.tag }}
     if: needs.build-venv.result == 'success'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
         with:
           fetch-depth: 0
       - name: Final Semantic Release
@@ -200,8 +200,8 @@ jobs:
       - build-venv
       - release
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
         with:
           name: build-artifact
           path: ${{ inputs.working-dir }}  
@@ -327,7 +327,7 @@ jobs:
           eval "$FINAL_COMMAND"
           echo "Job completed with success."
       - name: Slack Notification
-        uses: ravsamhq/notify-slack-action@master
+        uses: ravsamhq/notify-slack-action@be814b201e233b2dc673608aa46e5447c8ab13f2 # v2.5.0
         if: always()
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
