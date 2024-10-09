@@ -126,7 +126,7 @@ jobs:
       - name: Update Helm Chart
         id: update_chart
         env:
-          REPOSITORY: ${{ github.event.repository.name }}
+          REPOSITORY: ${{ inputs.repository-name }}
           IMAGE_TAG: ${{ steps.release_version.outputs.release_version }}
           CHART_VERSION: ${{ steps.release_version.outputs.release_version }}
           APP_VERSION: ${{ steps.release_version.outputs.release_version }}
