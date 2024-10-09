@@ -124,6 +124,7 @@ jobs:
       docker_password: ${{ steps.login-ecr.outputs.ECR_PASSWORD }}
   build-venv:
     name: Build Env
+    if: ${{ inputs.manage-resource }}
     needs:
       - create-runner
       - login-poetry 
