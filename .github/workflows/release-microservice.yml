@@ -96,7 +96,7 @@ jobs:
         id: ecr_helm_repository
         uses: pagopa/pdnd-github-actions/create-ecr-repository@74cf3f8abfacd6814b924408a11b02f177f8f5a3
         with:
-          repositoryName: charts/${{ inputs.repository-name }}
+          repositoryName: charts/${{ github.event.repository.name }}
       - name: Login to AWS ECR
         id: ecr_login
         uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2
