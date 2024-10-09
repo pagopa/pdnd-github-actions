@@ -173,7 +173,7 @@ jobs:
       - build-venv
     outputs:
       version: ${{ steps.release.outputs.tag }}
-    if: needs.build-venv.result == 'success'
+    if: needs.build-venv.result == 'success' && ${{ inputs.manage-resource }}
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
         with:
@@ -193,8 +193,6 @@ jobs:
   deploy:
     name: Deploy
     runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
-    env:
-      VERSION: ${{ needs.release.outputs.version }}
     needs:
       - create-runner
       - login-poetry
@@ -230,6 +228,8 @@ jobs:
       - name: Upload Resources
         if: ${{ inputs.manage-resource }}
         working-directory: ${{ inputs.working-dir }}   
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
         run: |
           #Update Version
           echo "${{ env.VERSION }}" > version.txt
