@@ -1,6 +1,21 @@
 name: Microservice - Release
 on:
   workflow_call:
+    inputs:
+      docker-image-to-update:
+        description: "Specify which docker imge to update if more than one"
+        default: ".image.digest"
+        required: false
+        type: string
+      repository-name:
+        description: "repository-name"
+        default: ${{ github.event.repository.name }}
+        required: false
+        type: string
+      dockerfile-directory:
+        description: "Directory containing the Dockerfile (leave empty if Dockerfile is in the root)"
+        required: false
+        type: string
 
 jobs:
   create-runner:
@@ -90,9 +105,12 @@ jobs:
         env:
           IMAGE_TAG: ${{ steps.release_version.outputs.release_version }}
           REGISTRY: ${{ steps.ecr_login.outputs.registry }}
-          REPOSITORY: ${{ github.event.repository.name }}
+          REPOSITORY: ${{ inputs.repository-name }}
           DOCKER_BUILDKIT: 1
         run: |
+          if [ -n "${{ inputs.dockerfile-directory }}" ]; then
+            cd ${{ inputs.dockerfile-directory }}
+          fi
           docker build \
               --build-arg DOCKER_REGISTRY_URI=$REGISTRY \
               -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
@@ -102,19 +120,19 @@ jobs:
         id: image_digest
         env:
           IMAGE_TAG: ${{ steps.release_version.outputs.release_version }}
-          REPOSITORY: ${{ github.event.repository.name }}
+          REPOSITORY: ${{ inputs.repository-name }}
         run: |
           echo "image_digest=$(aws ecr describe-images --repository-name $REPOSITORY --image-ids imageTag=$IMAGE_TAG | jq -r '.[] | .[].imageDigest')" >> "$GITHUB_OUTPUT"
       - name: Update Helm Chart
         id: update_chart
         env:
-          REPOSITORY: ${{ github.event.repository.name }}
+          REPOSITORY: ${{ inputs.repository-name }}
           IMAGE_TAG: ${{ steps.release_version.outputs.release_version }}
           CHART_VERSION: ${{ steps.release_version.outputs.release_version }}
           APP_VERSION: ${{ steps.release_version.outputs.release_version }}
           IMAGE_DIGEST: ${{ steps.image_digest.outputs.image_digest }}
         run: |
-          yq e '.image.digest = env(IMAGE_DIGEST)' -i .k8s/helm/values.yaml
+          yq e '${{ inputs.docker-image-to-update }} = env(IMAGE_DIGEST)' -i .k8s/helm/values.yaml
           yq e '.version = env(CHART_VERSION)' -i .k8s/helm/Chart.yaml
           yq e '.appVersion = env(APP_VERSION)' -i .k8s/helm/Chart.yaml
       - name: Push Helm Chart to AWS ECR
@@ -125,14 +143,17 @@ jobs:
           APP_VERSION: ${{ steps.release_version.outputs.release_version }}
           CHART: ${{ github.event.repository.name }}
         run: |
+          pwd
+          ls -la
           helm package .k8s/helm --version $CHART_VERSION --app-version $APP_VERSION
+          ls -la
           helm push $CHART-$CHART_VERSION.tgz oci://$REGISTRY/charts
       - name: Commit Helm Values
         id: commit_values
         uses: stefanzweifel/git-auto-commit-action@8621497c8c39c72f3e2a999a26b4ca1b5058a842 # v5
         with:
           branch: ${{ needs.prepare-release.outputs.release_pr_head }}
-          commit_message: "Autocommit: update image.digest and Helm versions"
+          commit_message: "Autocommit: update ${{ inputs.docker-image-to-update }} and Helm versions"
           file_pattern: '.k8s/helm/values.yaml .k8s/helm/Chart.yaml'
     outputs:
       release_version: ${{ steps.release_version.outputs.release_version }}
