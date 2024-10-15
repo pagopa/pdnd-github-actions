@@ -101,8 +101,8 @@ jobs:
           kubectl apply  -f target/kubernetes/kubernetes.yml -n  ${{ vars.MS_K8S_NAMESPACE }}
       - name : Convert openapi
         run: |
-          python3 ../../utils/scripts/openapi_integration.py -i src/main/resources/META-INF/openapi.yaml -o ${{ vars.AWS_OPENAPI_PATH }}
-
+          wget --header "Authorization: token ${{ secrets.PAT_BOT }}" ${{ vars.OPENAPI_INTEGRATION_SCRIPT_URL }} -P /tmp/
+          python3 /tmp/openapi_integration.py -i src/main/resources/META-INF/openapi.yaml -o ${{ vars.AWS_OPENAPI_PATH }}
       - name : Deploy openapi
         run: |
           cd .infra/aws
