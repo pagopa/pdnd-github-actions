@@ -84,8 +84,7 @@ jobs:
       - name : Convert OpenAPI
         id: openapi_convert
         run: |
-          wget --header "Authorization: token ${{ secrets.PAT_BOT }}" ${{ vars.OPENAPI_INTEGRATION_SCRIPT_URL }} -P /tmp/
-          python3 /tmp/openapi_integration.py -i ${{ inputs.openapi-folder }}/openapi.yaml -o ${{ vars.AWS_OPENAPI_PATH }}
+          python3 ../../utils/scripts/openapi_integration.py -i ${{ inputs.openapi-folder }}/openapi.yaml -o ${{ vars.AWS_OPENAPI_PATH }}
       - name: Setup Git Credentials
         id: openapi_git_credentials
         uses: de-vri-es/setup-git-credentials@5e1f18da68b7039c7f824408d170811aaec93ca8 # v2.1.2
