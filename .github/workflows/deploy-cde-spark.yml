@@ -1,0 +1,239 @@
+name: Deploy CDE Spark Job
+on:
+  workflow_call:
+    inputs:
+      config-json:
+        description: 'config to deploy'
+        type: string
+      vcluster-endpoint:
+        description: 'the vcluster to deploy on'
+        type: string
+jobs:
+  create_runner:
+    name: Create Runner
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Create Runner
+        id: create_runner
+        if: ${{ !env.ACT }}
+        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
+        with:
+          name: ${{ github.event.repository.name }}
+          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+          namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
+          image: ${{ vars.RUNNER_DOCKER_IMAGE}}
+          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
+          docker_enabled: true
+    outputs:
+      runner_label: ${{ steps.create_runner.outputs.runner_label }}
+  parse-config:
+    runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
+    needs:
+      - create_runner
+    steps:
+      - name: Hack container for local development
+        if: ${{ env.ACT }}
+        run: echo /runnertmp/externals/node16/bin/ >> $GITHUB_PATH
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+      - name: Build commands
+        id: parse_json
+        uses: actions/github-script@v7
+        with:
+          script: |
+            function buildOptions(json){
+                var command = ''
+                for (const [key, value] of Object.entries(json)) {
+                    if (Array.isArray(value)) {
+                        value.forEach(element => {
+                            command += ` --${key}="${element}"`;
+                        });
+                    } else if (typeof value === 'object' && value !== null) {
+                        throw new Error(`Unsupported nested object for key: ${key}`);
+                    } else {
+                        command += ` --${key}="${value}"`;
+                    }
+                }
+                return command
+            }
+            function addDefaultJobArgs(conf){
+              let additionalArgs = ""
+              if (conf.job_default_args){
+                additionalArgs = " --arg --knox_config.gateway "
+                additionalArgs += " --arg ${{ vars.KNOX_GATEWAY }} "
+                additionalArgs += " --arg --knox_config.hostname "
+                additionalArgs += " --arg ${{ vars.KNOX_HOSTNAME }} "
+              }
+              return additionalArgs
+            }
+            function addLocalVenvConf(conf){
+              let additionalConf = ""
+              if (conf.venv){
+                additionalConf = " --runtime-image-resource-name ${{ vars.RUNTIME_IMAGE_RESOURCE_NAME }} "
+                additionalConf += ` --conf spark.archives=/app/mount/${conf.venv["file-name"]}.tar.gz#environment `
+                additionalConf += ` --conf spark.pyspark.python=/opt/spark/work-dir/./environment/bin/python3 `
+              }
+              return additionalConf
+            }
+            const fs = require('fs');
+            console.log("input provided : ")
+            console.log(${{ inputs.config-json }})
+            config=JSON.parse(${{ inputs.config-json }});
+            console.log("Using configuration:", config);
+            const command_sequence = [];
+            let opts = buildOptions(config.job) + addDefaultJobArgs(config) + addLocalVenvConf(config)
+            const job_create_cmd = `
+                if cde job describe --name ${config.job.name} >/dev/null 2>&1; then
+                  cde job delete --name ${config.job.name}
+                fi;
+                cde job create --type="spark" ${opts}
+            `;
+
+            config.resources.forEach(resource => {
+
+              const create_cmd = `
+                  if ! cde resource describe --name ${resource.create.name} >/dev/null 2>&1; then
+                    cde resource create ${buildOptions(resource.create)}
+                  fi
+              `;
+              command_sequence.push(create_cmd);
+              resource.upload.forEach(upload =>{
+                      const upload_cmd = "cde resource upload " + buildOptions(upload)
+                      command_sequence.push(upload_cmd)
+                  })
+            });
+            if (config.venv){
+              upload_venv_cmd = `cde resource upload --name ${config.venv.resource} --local-path ${config.venv["file-name"]}.tar.gz`
+              command_sequence.push(upload_venv_cmd)
+            }
+            command_sequence.push(job_create_cmd)
+            res = {
+                "commands" : command_sequence,
+                "vcluster" : "${{ inputs.vcluster-endpoint }}",
+                "venv" : config.venv,
+                "base_dir" : config.base_dir,
+                "job_default_args" : config.job_default_args
+
+            }
+            console.log("conf parsed : ")
+            console.log(res)
+            return res
+    outputs:
+      parsed_config: ${{ steps.parse_json.outputs.result }}
+  login-poetry:
+    name: Login Poetry
+    runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
+    needs:
+      - create_runner
+    steps:
+      - id : login-poetry
+        run : |
+            echo "POETRY_HTTP_BASIC_ARTIFACT_PASSWORD=$(aws codeartifact get-authorization-token --domain-owner 688071769384 \
+              --domain ${{ vars.CODEARTIFACT_DOMAIN }} --query 'authorizationToken' --output text)" >> "$GITHUB_OUTPUT"
+      - id : login-ecr
+        run : |
+            echo "ECR_PASSWORD=$(aws ecr get-login-password --region eu-central-1)" >> "$GITHUB_OUTPUT"
+    outputs:
+      poetry_token: ${{ steps.login-poetry.outputs.POETRY_HTTP_BASIC_ARTIFACT_PASSWORD }}
+      docker_password: ${{ steps.login-ecr.outputs.ECR_PASSWORD }}
+  build-venv:
+    name: Build Env
+    if: ${{  fromJson(needs.parse-config.outputs.parsed_config).venv }}
+    needs:
+      - create_runner
+      - login-poetry
+      - parse-config
+    runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
+    container:
+      image: ${{ vars.CDE_RUNTIME_IMAGE }}
+      credentials:
+        username: AWS
+        password: ${{ needs.login-poetry.outputs.docker_password }}
+      options: 
+        --privileged
+        --user root
+    env:
+      POETRY_HTTP_BASIC_ARTIFACT_PASSWORD: ${{ needs.login-poetry.outputs.poetry_token }}
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+        with:
+          fetch-depth: 0
+      - name: Build Project
+        working-directory: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
+        continue-on-error: false
+        run: |
+          poetry config virtualenvs.in-project true
+          poetry config virtualenvs.create true
+          poetry install --without test,dev --no-root
+          poetry build -f wheel -n 
+          poetry run pip install --no-deps dist/*.whl
+          poetry run pip install venv-pack2
+          poetry run venv-pack -o ${{  fromJson(needs.parse-config.outputs.parsed_config).venv.file-name }}.tar.gz
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@604373da6381bf24206979c74d06a550515601b9 # v4
+        with:
+          name: build-artifact
+          path: ${{ fromJson(needs.parse-config.outputs.parsed_config).base_dir }}/${{ fromJson(needs.parse-config.outputs.parsed_config).venv.file-name }}.tar.gz
+          overwrite: true
+  execute-commands:
+    runs-on: self-hosted
+    strategy:
+      max-parallel: 1
+      matrix:
+        command: ${{  fromJson(needs.parse-config.outputs.parsed_config).commands }}
+    needs:
+      - parse-config
+      - build-venv
+    steps:
+      - name: Hack container for local development
+        if: ${{ env.ACT }}
+        run: echo /runnertmp/externals/node16/bin/ >> $GITHUB_PATH
+      - name: Checkout the repository
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+        if: ${{  fromJson(needs.parse-config.outputs.parsed_config).venv }}
+        with:
+          name: build-artifact
+          path: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}  
+      - name: Setup CDE CLI
+        uses: pagopa/pdnd-github-actions/setup-cde-cli@6b1d8bd54b81bb92959959fe83ccda30aa6ff0bd
+        with:
+            version: "1.20.3"
+            access_key_id: ${{ secrets.GH_CDP_ACCESS_KEY_ID }}
+            private_key: ${{ secrets.GH_CDP_PRIVATE_KEY }}
+            codeartifact_domain: ${{ vars.CODEARTIFACT_DOMAIN }}
+            codeartifact_repository: ${{ vars.CODEARTIFACT_REPOSITORY }}
+            vcluster_endpoint:  ${{ inputs.vcluster-endpoint }}
+      - name: Run commands
+        working-directory: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
+        run: |
+          echo "current dir : "
+          pwd
+          echo "dir content :"
+          ls -lart
+          echo executing command : '${{ matrix.command }}'
+          eval "${{ matrix.command }}"
+  destroy_runner:
+    name: Destroy Runner
+    runs-on: ubuntu-latest
+    permissions:
+        id-token: write
+        contents: read
+    if: ${{ always() && !contains(needs.create_runner.result, 'failure')}}
+    needs:
+        - create_runner
+        - execute-commands
+    steps:
+        - name: Destroy Runner
+          id: destroy_runner
+          if: ${{ !env.ACT }}
+          uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
+          with:
+              cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+              aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+              runner_label: ${{ needs.create_runner.outputs.runner_label }}
+              namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }} 

@@ -1,0 +1,144 @@
+name: UnDeploy CDE Spark Job
+on:
+  workflow_call:
+    inputs:
+      config-json:
+        description: 'config to undeploy'
+        type: string
+      vcluster-endpoint:
+        description: 'the vcluster to deploy on'
+        type: string
+jobs:
+  create_runner:
+    name: Create Runner
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Create Runner
+        id: create_runner
+        if: ${{ !env.ACT }}
+        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
+        with:
+          name: ${{ github.event.repository.name }}
+          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+          namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
+          image: ${{ vars.RUNNER_DOCKER_IMAGE}}
+          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
+          docker_enabled: true
+    outputs:
+      runner_label: ${{ steps.create_runner.outputs.runner_label }}
+  parse-config:
+    runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
+    needs:
+      - create_runner
+    steps:
+      - name: Hack container for local development
+        if: ${{ env.ACT }}
+        run: echo /runnertmp/externals/node16/bin/ >> $GITHUB_PATH
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+      - name: Build commands
+        id: parse_json
+        uses: actions/github-script@v7
+        with:
+          script: |
+
+            const fs = require('fs');
+            console.log("input provided : ")
+            console.log(${{ inputs.config-json }})
+            config=JSON.parse(${{ inputs.config-json }});
+            console.log("Using configuration:", config);
+            const command_sequence = [];
+            const job_create_cmd = `
+                if cde job describe --name ${config.job.name} >/dev/null 2>&1; then
+                  cde job delete --name ${config.job.name}
+                fi;
+            `;
+            command_sequence.push(job_create_cmd)
+            config.resources.forEach(resource => {
+
+              const create_cmd = `
+                  if cde resource describe --name ${resource.create.name} >/dev/null 2>&1; then
+                    cde resource create ${buildOptions(resource.create)}
+                  fi
+              `;
+              command_sequence.push(create_cmd);
+            });
+            if (config.venv){
+              upload_venv_cmd = `cde resource upload --name ${config.venv.resource} --local-path ${config.venv["file-name"]}.tar.gz`
+              command_sequence.push(upload_venv_cmd)
+            }
+            res = {
+                "commands" : command_sequence,
+                "vcluster" : "${{ inputs.vcluster-endpoint }}",
+                "venv" : config.venv,
+                "base_dir" : config.base_dir,
+                "job_default_args" : config.job_default_args
+
+            }
+            console.log("conf parsed : ")
+            console.log(res)
+            return res
+    outputs:
+      parsed_config: ${{ steps.parse_json.outputs.result }}
+
+  execute-commands:
+    runs-on: self-hosted
+    strategy:
+      max-parallel: 1
+      matrix:
+        command: ${{  fromJson(needs.parse-config.outputs.parsed_config).commands }}
+    needs:
+      - parse-config
+    steps:
+      - name: Hack container for local development
+        if: ${{ env.ACT }}
+        run: echo /runnertmp/externals/node16/bin/ >> $GITHUB_PATH
+      - name: Checkout the repository
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+        if: ${{  fromJson(needs.parse-config.outputs.parsed_config).venv }}
+        with:
+          name: build-artifact
+          path: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}  
+      - name: Setup CDE CLI
+        uses: pagopa/pdnd-github-actions/setup-cde-cli@6b1d8bd54b81bb92959959fe83ccda30aa6ff0bd
+        with:
+            version: "1.20.3"
+            access_key_id: ${{ secrets.GH_CDP_ACCESS_KEY_ID }}
+            private_key: ${{ secrets.GH_CDP_PRIVATE_KEY }}
+            codeartifact_domain: ${{ vars.CODEARTIFACT_DOMAIN }}
+            codeartifact_repository: ${{ vars.CODEARTIFACT_REPOSITORY }}
+            vcluster_endpoint:  ${{ inputs.vcluster-endpoint }}
+      - name: Run commands
+        working-directory: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
+        run: |
+          echo "current dir : "
+          pwd
+          echo "dir content :"
+          ls -lart
+          echo executing command : '${{ matrix.command }}'
+          eval "${{ matrix.command }}"
+  destroy_runner:
+    name: Destroy Runner
+    runs-on: ubuntu-latest
+    permissions:
+        id-token: write
+        contents: read
+    if: ${{ always() && !contains(needs.create_runner.result, 'failure')}}
+    needs:
+        - create_runner
+        - execute-commands
+    steps:
+        - name: Destroy Runner
+          id: destroy_runner
+          if: ${{ !env.ACT }}
+          uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
+          with:
+              cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+              aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+              runner_label: ${{ needs.create_runner.outputs.runner_label }}
+              namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }} 

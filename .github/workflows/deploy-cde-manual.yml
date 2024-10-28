@@ -1,0 +1,105 @@
+name: Deploy Job manually on env
+on:
+  workflow_call:
+    inputs:
+        environment:
+          description: 'Choose the environment'
+          required: true
+          type: string
+        config:
+          description: 'Choose the config to deploy'
+          required: true
+          type: string
+        deploy-type:
+          description: 'Deploy on spark or airflow'
+          required: true
+          type: string
+jobs:
+  create_runner:
+    name: Create Runner
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Create Runner
+        id: create_runner
+        if: ${{ !env.ACT }}
+        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
+        with:
+          name: ${{ github.event.repository.name }}
+          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+          namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
+          image: ${{ vars.RUNNER_DOCKER_IMAGE}}
+          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
+          docker_enabled: true
+    outputs:
+      runner_label: ${{ steps.create_runner.outputs.runner_label }}
+  prepare_deploy:
+    runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
+    needs:
+      - create_runner
+    steps:
+      - name: Hack container for local development
+        if: ${{ env.ACT }}
+        run: echo /runnertmp/externals/node16/bin/ >> $GITHUB_PATH
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #v4
+      - name: Extract cde config
+        id: extract-deploy-configs
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea #v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            let conf = ".github/workflows/config/${{ github.event.inputs.environment }}/${{ github.event.inputs.config }}.json"
+            const data = fs.readFileSync(conf, 'utf8');
+            conf = JSON.parse(data);
+            console.log("using deploy config : ")
+            console.log(conf)
+            return conf
+    outputs:
+        deploy_configs: ${{ steps.extract-deploy-configs.outputs.result }}
+  destroy_runner:
+    name: Destroy Runner
+    runs-on: ubuntu-latest
+    permissions:
+        id-token: write
+        contents: read
+    if: ${{ always() && !contains(needs.create_runner.result, 'failure')}}
+    needs:
+        - create_runner
+        - prepare_deploy
+    steps:
+        - name: Destroy Runner
+          id: destroy_runner
+          if: ${{ !env.ACT }}
+          uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
+          with:
+              cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+              aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+              runner_label: ${{ needs.create_runner.outputs.runner_label }}
+              namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }} 
+  deploy-airflow:
+      if:  inputs.deploy-type  == 'airflow'
+      needs:
+        - destroy_runner
+        - prepare_deploy
+      uses: ./.github/workflows/deploy-cde-airflow.yml
+      secrets: inherit
+      with:
+          config-json: ${{ toJson(needs.prepare_deploy.outputs.deploy_configs) }}
+          vcluster-endpoint:  ${{ vars[format('VCLUSTER_ENDPOINT_{0}', github.event.inputs.environment)] }}
+  deploy-spark:
+    if:  inputs.deploy-type  == 'spark'
+    needs:
+      - destroy_runner
+      - prepare_deploy
+    uses: ./.github/workflows/deploy-cde-spark.yml
+    secrets: inherit
+    with:
+        config-json: ${{ toJson(needs.prepare_deploy.outputs.deploy_configs) }}
+        vcluster-endpoint:  ${{ vars[format('VCLUSTER_ENDPOINT_{0}', github.event.inputs.environment)] }}
+            
