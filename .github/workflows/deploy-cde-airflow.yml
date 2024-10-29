@@ -39,7 +39,7 @@ jobs:
         if: ${{ env.ACT }}
         run: echo /runnertmp/externals/node16/bin/ >> $GITHUB_PATH
       - name: Checkout the repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Get bot users
         uses: aws-actions/aws-secretsmanager-get-secrets@4e95aaf6ba8028772f5384971d4fedccfaab8621 #v2.0.6
         with:
@@ -47,7 +47,7 @@ jobs:
              CLOUDERA_BOT_USERS,${{ vars.CLOUDERA_BOT_USERS_SECRET_NAME }} 
       - name: Build commands
         id: parse_json
-        uses: actions/github-script@v7
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
         with:
           script: |
             function buildOptions(json){
