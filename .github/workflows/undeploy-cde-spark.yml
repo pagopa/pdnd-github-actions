@@ -52,29 +52,26 @@ jobs:
             config=JSON.parse(${{ inputs.config-json }});
             console.log("Using configuration:", config);
             const command_sequence = [];
-            const job_create_cmd = `
+            const job_delete_cmd = `
                 if cde job describe --name ${config.job.name} >/dev/null 2>&1; then
                   cde job delete --name ${config.job.name}
                 fi;
             `;
-            command_sequence.push(job_create_cmd)
+            command_sequence.push(job_delete_cmd)
             config.resources.forEach(resource => {
 
-              const create_cmd = `
+              const delete_cmd = `
                   if cde resource describe --name ${resource.create.name} >/dev/null 2>&1; then
-                    cde resource create ${buildOptions(resource.create)}
+                    cde resource delete --name ${resource.create.name}
                   fi
               `;
-              command_sequence.push(create_cmd);
+              command_sequence.push(delete_cmd);
+
             });
-            if (config.venv){
-              upload_venv_cmd = `cde resource upload --name ${config.venv.resource} --local-path ${config.venv["file-name"]}.tar.gz`
-              command_sequence.push(upload_venv_cmd)
-            }
+
             res = {
                 "commands" : command_sequence,
                 "vcluster" : "${{ inputs.vcluster-endpoint }}",
-                "venv" : config.venv,
                 "base_dir" : config.base_dir,
                 "job_default_args" : config.job_default_args
 
