@@ -1,11 +1,13 @@
 # Deploy CDE Spark Workflow
 
-This README outlines the deployment workflow for spark jobs in the CDE using a JSON deployment descriptor as input. 
+This README describes the deployment workflow for spark jobs in the CDE using a JSON deployment descriptor as input. 
 
 The workflow maps the keys in the JSON under `job` and `resources` directly to CDE commands and options.
 
+The workflow will skip all remaining commands if there is some error.
+
 ## Inputs
-The parameter `config-json` must be a deployment descriptor with to the following structure:
+`config-json` must be a deployment descriptor with to the following structure:
 
 ```json
 {
@@ -50,8 +52,12 @@ The parameter `config-json` must be a deployment descriptor with to the followin
 - **Job Default Args**: If true, appends additional arguments for authentication.
 - **Base Dir**: Specifies the base path for job-related files. (mandatory)
 
+`${{ secrets.GH_CDP_ACCESS_KEY_ID }}` and `${{ secrets.GH_CDP_PRIVATE_KEY }}` must be present in the repo to get CDE credentials
+
 ## Deployment Steps
 
+
+Given an input, the workflow generates the following series of CDE commands : 
 1. **Resource Creation**:
    For each resource specified in the `resources` array, the following command checks if the resource exists, and if not, creates it:
 
@@ -88,7 +94,7 @@ If the `venv` key is present, the following actions will occur:
 --conf "spark.pyspark.python=local_venv/bin/python"
 ```
 
-**Note**: Ensure the `venv-pack2` library is included in your project dependencies, as only Poetry is supported for virtual environment management.
+**Note**: Ensure the `venv-pack2` library is included in your project dependencies, only Poetry is supported for virtual environment management.
 
 ### Default Job Arguments
 
@@ -102,8 +108,6 @@ If `job_default_args` is set to `true`, the following arguments will be automati
 ### Directory Structure
 
 The `base_dir` specifies the base path for job files in the repository. All paths in the deployment descriptor are relative to this base directory.
-
-**Important**: The base directory must not end with a `/`.
 
 ### Example Command Execution
 
@@ -149,11 +153,11 @@ cde job create --application-file="main.py" --name="job-name" --driver-cores=5 -
 
 ## Conclusion
 
-This deployment workflow automates the process of deploying spark jobs and resources in the CDE. Ensure that your JSON descriptor is correctly formatted, contains a mandatory job "name," and includes at least one "create" and "upload" resource with the main entry point of the job for a successful deployment. For further assistance, please refer to the CDE documentation.
+This deployment workflow automates the process of deploying spark jobs and resources in the CDE. Ensure that your JSON descriptor is correctly formatted, contains a mandatory job `name`, and includes at least one `create` and `upload` resource with the main entry point of the job for a successful deployment. For further assistance, please refer to the CDE documentation.
 
 ## Full JSON Structure
 
-Here is a sample of the full JSON structure withavailable keys: 
+Here is a sample of the full JSON structure with available keys: 
 ```json
 {
   "job": {

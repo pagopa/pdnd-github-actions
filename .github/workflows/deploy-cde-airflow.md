@@ -1,11 +1,13 @@
 # Deploy CDE Airflow Workflow
 
-This README outlines the deployment workflow for airflow jobs in the CDE using a JSON deployment descriptor as input. 
+This README describes the deployment workflow for airflow jobs in the CDE using a JSON deployment descriptor as input. 
 
 The workflow maps the keys in the JSON under `job` and `resources` directly to CDE commands and options.
 
+The workflow will skip all remaining commands if there is some error.
+
 ## Inputs
-The parameter `config-json` must be a deployment descriptor with to the following structure:
+`config-json` must be a deployment descriptor with to the following structure:
 
 ```json
 {
@@ -37,16 +39,16 @@ The parameter `config-json` must be a deployment descriptor with to the followin
   "base_dir": "dags/sample/sample_dag", //mandatory
 }
 ```
-`vcluster-endpoint` : CDE vcluster to deploy on 
-### Key Sections
+`vcluster-endpoint` : URL of the CDE vcluster to deploy on 
+### Descriptor Details
 
 - **Job**: Contains job configuration details such as the application file, job name (mandatory), and resource mounts. The `name` key is required for job creation.
-- **Resources**: Details the resources needed for the job. There must be at least one resource that includes a `create` section and an `upload` section that contains the main entry point of the job.
+- **Resources**: Contains the resources needed for the job. There must be at least one resource that includes a `create` section and an `upload` section that contains the main entry point of the job.
 - **Base Dir**: Specifies the base path for job-related files. (mandatory)
-- **Owner**: The user that deploy this job (mandatory). `${{ vars.CLOUDERA_BOT_USERS_SECRET_NAME }}` must be present in the repo to get CDE cretentials of owner  
+- **Owner**: The user that deploy this job (mandatory). `${{ vars.CLOUDERA_BOT_USERS_SECRET_NAME }}` must be present in the repo to get CDE credentials of owner  
 
 ## Deployment Steps
-
+Given an input, the workflow generates the following series of CDE commands : 
 1. **Resource Creation**:
    For each resource specified in the `resources` array, the following command checks if the resource exists, and if not, creates it:
 
@@ -74,7 +76,6 @@ The parameter `config-json` must be a deployment descriptor with to the followin
 
 The `base_dir` specifies the base path for job files in the repository. All paths in the deployment descriptor are relative to this base directory.
 
-**Important**: The base directory must not end with a `/`.
 
 ### Example Command Execution
 
@@ -120,11 +121,12 @@ cde job create --dag-file="main.py" --name="job-name" --mount-1-resource="some-r
 
 ## Conclusion
 
-This deployment workflow automates the process of deploying spark jobs and resources in the CDE. Ensure that your JSON descriptor is correctly formatted, contains a mandatory job "name," and includes at least one "create" and "upload" resource with the main entry point of the job for a successful deployment. For further assistance, please refer to the CDE documentation.
+This deployment workflow automates the process of deploying airflow jobs and resources in the CDE. Ensure that your JSON descriptor is correctly formatted, contains a mandatory job `name`, and includes at least one `create` and `upload` resource with the main entry point of the job for a successful deployment. For further assistance, please refer to the CDE documentation.
 
 ## Full JSON Structure
 
-Here is a sample of the full JSON structure withavailable keys: 
+Here is a sample of the JSON structure with available keys for an airflow job.
+NB the options may vary, always follow CDE [Docs](https://docs.cloudera.com/data-engineering/cloud/cli-access/topics/cde-cli-reference.html) for details 
 ```json
 {
   "job": {
@@ -146,8 +148,6 @@ Here is a sample of the full JSON structure withavailable keys:
     "every-hours": "some string",
     "every-minutes": "some string",
     "every-months": "some string",
-    "executor-node-selector": ["some string"],
-    "executor-node-toleration": ["some string"],
     "for-days-of-month": "some string",
     "for-days-of-week": "some string",
     "for-hours-of-day": "some string",
@@ -160,7 +160,6 @@ Here is a sample of the full JSON structure withavailable keys:
     "name": "some string",
     "retention-policy": "some string",
     "role": "some string",
-    "runtime-image-resource-name": "some string",
     "schedule-enabled": "some string",
     "schedule-end": "some string",
     "schedule-paused": "some string",
@@ -174,7 +173,6 @@ Here is a sample of the full JSON structure withavailable keys:
         "extra-pip-repository-N-cred": "some string",
         "extra-pip-repository-N-skip-cert-validation": "some string",
         "extra-pip-repository-N-url": "some string",
-        "help": "some string",
         "image": "some string",
         "image-credential": "some string",
         "image-engine": "some string",
@@ -197,13 +195,7 @@ Here is a sample of the full JSON structure withavailable keys:
       ]
     }
   ],
-  "venv": {
-    "file-name": "local_venv",
-    "resource": "ingestion"
-  },
-  "job_default_args": true,
   "base_dir": "ingestion"
 }
 
 ```
-For full arguments details follow the cloudera documentation on the CDE command : [Docs](https://docs.cloudera.com/data-engineering/cloud/cli-access/topics/cde-cli-reference.html). 
