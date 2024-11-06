@@ -22,6 +22,11 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Mask Sensitive Inputs
+      run: |
+        echo "::add-mask::${{ inputs.access_key_id }}"
+        echo "::add-mask::${{ inputs.private_key }}"
+      shell: bash
     - name: Set Up CDE CLI
       run: |
         aws codeartifact get-package-version-asset \
