@@ -13,6 +13,11 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Mask Sensitive Inputs
+      run: |
+        echo "::add-mask::${{ inputs.access_key_id }}"
+        echo "::add-mask::${{ inputs.private_key }}"
+      shell: bash
     - name: Install CDP CLI
       run: |
         pip install cdpcli==${{ inputs.version }}
