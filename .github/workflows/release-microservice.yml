@@ -70,11 +70,23 @@ jobs:
     outputs:
       release_pr_number: ${{ steps.pr_number.outputs.release_pr_number }}
       release_pr_head: ${{ steps.pr_head.outputs.release_pr_head }}
+  skip-build:
+    name: Skip Build
+    needs: 
+      - create-runner
+      - prepare-release
+    runs-on: ubuntu-latest
+    if: needs.prepare-release.outputs.release_pr_head == 'null'
+
+    steps:
+      - name: Log Message for Missing Release
+        run: echo "No new release was created by release-please. Skipping the build-microservice job."
   build-microservice:
     name: Build Microservice
     needs:
       - create-runner
       - prepare-release
+    if: needs.prepare-release.outputs.release_pr_head != 'null'
     runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
     steps:
       - name: Checkout
@@ -210,6 +222,7 @@ jobs:
       - prepare-release
       - build-microservice
       - finalize-release
+      - skip-build
     permissions:
       id-token: write
       contents: read
