@@ -106,7 +106,7 @@ jobs:
       - name: Checkout the repository
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       - name: Setup CDE CLI
-        uses: pagopa/pdnd-github-actions/setup-cde-cli@6b1d8bd54b81bb92959959fe83ccda30aa6ff0bd
+        uses: pagopa/pdnd-github-actions/setup-cde-cli@b6de1cd44031f1b3c8546864b55b713f4d5fdd28
         with:
             version: "1.20.3"
             access_key_id: ${{  fromJson(needs.parse-config.outputs.parsed_config).cde_acces_keys.access_key_id }}
