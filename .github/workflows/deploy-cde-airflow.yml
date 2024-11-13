@@ -65,7 +65,12 @@ jobs:
             function buildOptions(json){
                 var command = ''
                 for (const [key, value] of Object.entries(json)) {
-                    if (Array.isArray(value)) {
+                    if (typeof value === 'boolean') {
+                        if (value) {
+                            command += ` --${key}`;
+                        }
+                    }
+                    else if (Array.isArray(value)) {
                         value.forEach(element => {
                             command += ` --${key}="${element}"`;
                         });
