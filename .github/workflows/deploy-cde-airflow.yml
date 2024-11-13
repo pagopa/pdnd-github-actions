@@ -95,10 +95,14 @@ jobs:
             }
             const command_sequence = [];
             let opts = buildOptions(config.job)
-            const job_create_cmd = `
+
+            const job_delete_cmd = `
                 if cde job describe --name ${config.job.name} >/dev/null 2>&1; then
                   cde job delete --name ${config.job.name}
                 fi;
+            `;
+            command_sequence.push(job_delete_cmd)
+            const job_create_cmd = `
                 cde job create --type="airflow" ${opts}
             `;
 
