@@ -113,8 +113,9 @@ jobs:
 
               const create_cmd = `
                   if ! cde resource describe --name ${resource.create.name} >/dev/null 2>&1; then
-                    cde resource create ${buildOptions(resource.create)}
+                    cde resource delete --name ${resource.create.name}
                   fi
+                  cde resource create ${buildOptions(resource.create)}
               `;
               command_sequence.push(create_cmd);
               resource.upload.forEach(upload =>{
