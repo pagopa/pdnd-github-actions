@@ -191,7 +191,9 @@ jobs:
           path: ${{ fromJson(needs.parse-config.outputs.parsed_config).base_dir }}/${{ fromJson(needs.parse-config.outputs.parsed_config).venv.file-name }}.tar.gz
           overwrite: true
   execute-commands:
+    name: Execute commands
     runs-on: self-hosted
+    if: ${{ !failure() && !cancelled() }}
     strategy:
       max-parallel: 1
       matrix:
