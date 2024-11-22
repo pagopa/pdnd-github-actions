@@ -52,11 +52,16 @@ jobs:
         with:
           file: 'input_config.json'
           schema: 'schema.json'
+      - name: Extracts owner
+        id: extract_owner
+        run: |
+          echo "owner=$(echo ${{ inputs.config-json }} | jq -r '.owner')" >> "$GITHUB_OUTPUT"
+
       - name: Get bot users
         uses: aws-actions/aws-secretsmanager-get-secrets@4e95aaf6ba8028772f5384971d4fedccfaab8621 #v2.0.6
         with:
           secret-ids: |
-             CLOUDERA_BOT_USERS,${{ vars.CLOUDERA_BOT_USERS_SECRET_NAME }} 
+             CLOUDERA_BOT_USER,${{ vars.CLOUDERA_BOT_USERS_SECRET_NAME }}/${{ steps.extract_owner.outputs.owner }}
       - name: Build commands
         id: parse_json
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
@@ -88,8 +93,8 @@ jobs:
             config=JSON.parse(${{ inputs.config-json }});
             console.log("Using configuration:", config);
             const dag_owner = config.owner;
-            const clouderaBotUsersSecret = JSON.parse(process.env.CLOUDERA_BOT_USERS);
-            const acces_keys = clouderaBotUsersSecret[dag_owner];
+            const clouderaBotUserSecret = JSON.parse(process.env.CLOUDERA_BOT_USER);
+            const acces_keys = clouderaBotUserSecret.access_keys;
             if (!acces_keys){
               throw new Error('owner specified not found in secrets');
             }
