@@ -232,10 +232,6 @@ jobs:
       - name: Run commands
         working-directory: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
         run: |
-          echo "current dir : "
-          pwd
-          echo "dir content :"
-          ls -lart
           echo executing command : '${{ matrix.command }}'
           eval "${{ matrix.command }}"
   destroy_runner:

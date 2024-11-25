@@ -126,6 +126,10 @@ jobs:
                   })
             });
             command_sequence.push(job_create_cmd)
+            const job_unpause_cmd = `
+                cde job schedule unpause --name ${config.job.name}
+            `;
+            command_sequence.push(job_unpause_cmd)
             res = {
                 "commands" : command_sequence,
                 "vcluster" : "${{ inputs.vcluster-endpoint }}",
@@ -137,6 +141,7 @@ jobs:
       parsed_config: ${{ steps.parse_json.outputs.result }}
   execute-commands:
     runs-on: self-hosted
+    if: ${{ !failure() && !cancelled() }}
     strategy:
       max-parallel: 1
       matrix:
@@ -166,10 +171,6 @@ jobs:
       - name: Run commands
         working-directory: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
         run: |
-          echo "current dir : "
-          pwd
-          echo "dir content :"
-          ls -lart
           echo executing command : '${{ matrix.command }}'
           eval "${{ matrix.command }}"
   destroy_runner:

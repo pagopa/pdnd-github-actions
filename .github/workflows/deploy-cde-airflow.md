@@ -45,7 +45,7 @@ The workflow will skip all remaining commands if there is some error.
 - **Job**: Contains job configuration details such as the application file, job name (mandatory), and resource mounts. The `name` key is required for job creation.
 - **Resources**: Contains the resources needed for the job. There must be at least one resource that includes a `create` section and an `upload` section that contains the main entry point of the job.
 - **Base Dir**: Specifies the base path for job-related files. (mandatory)
-- **Owner**: The user that deploy this job (mandatory). `${{ vars.CLOUDERA_BOT_USERS_SECRET_NAME }}` must be present in the repo to get CDE credentials of owner  
+- **Owner**: The user that deploy this job (mandatory). `${{ vars.CLOUDERA_BOT_USER_SECRET_NAME }}` must be present in the repo to get CDE credentials of job owner reading it in the aws secret named :  `${{ vars.CLOUDERA_BOT_USER_SECRET_NAME }}/{owner}`
 
 ## Deployment Steps
 Given an input, the workflow generates the following series of CDE commands : 

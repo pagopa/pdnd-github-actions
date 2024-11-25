@@ -136,7 +136,7 @@ jobs:
       - prepare-release
       - deploy-airflow
       - deploy-spark
-    if: ${{ always() && !(contains(needs.deploy-airflow.result, 'failure') || contains(needs.deploy-spark.result, 'failure'))}}
+    if: ${{ !failure() && !cancelled() }}
     strategy:
       max-parallel: 1
       fail-fast: false
