@@ -74,9 +74,12 @@ jobs:
                       const fileContent = fs.readFileSync(filePath, 'utf-8');
                       let jsonContent = JSON.parse(fileContent);
                       let changed_dir = path_module.dirname(path);
-                      const base_dir = str => jsonContent.base_dir.endsWith('/') ? jsonContent.base_dir.slice(0, -1) : jsonContent.base_dir;
-                      if (changed_dir == base_dir) {
+                      const base_dir = jsonContent.base_dir.endsWith('/') ? jsonContent.base_dir.slice(0, -1) : jsonContent.base_dir;
+                      if (changed_dir.startsWith(base_dir)) {
+                        console.log("changed path :" + changed_dir + " is subpath of : " + base_dir + " adding to deploy")
                         res.push(JSON.stringify(jsonContent));
+                      }else{
+                        console.log("changed path :" + changed_dir + " is not subpath of : " + base_dir + " skippin")
                       }
                   })
                   //conf changed
