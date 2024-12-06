@@ -7,6 +7,11 @@ on:
         default: false
         required: false
         type: boolean
+      semantic_version:
+        description: "Specify which semantic_version to use"
+        default: "21.1.2"
+        required: false
+        type: string
     outputs:
       release_tag:
         description: "Release Tag name"
@@ -69,9 +74,10 @@ jobs:
           key: ${{ runner.os }}-m2
           restore-keys: ${{ runner.os }}-m2    
       - name: Semantic Release
-        uses: cycjimmy/semantic-release-action@v4
+        uses: cycjimmy/semantic-release-action@b1b432f13acb7768e0c8efdec416d363a57546f2 # v4.1.1
         id: semantic
         with:
+          semantic_version: ${{ inputs.semantic_version }}
           extra_plugins: |
             @semantic-release/changelog@6.0.0
             @semantic-release/git
