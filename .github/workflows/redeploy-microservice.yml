@@ -70,6 +70,7 @@ jobs:
           ls -la
           helm package .k8s/helm --version $CHART_VERSION --app-version $APP_VERSION
           ls -la
+          cat .k8s/helm/Chart.yaml
           helm push $CHART-$CHART_VERSION.tgz oci://$REGISTRY/charts
       - name: Commit Changes
         uses: stefanzweifel/git-auto-commit-action@v5
@@ -103,6 +104,7 @@ jobs:
         run: |
           pwd
           ls -la
+          cat .k8s/helm/Chart.yaml
           aws eks update-kubeconfig --region eu-central-1 --name ${{ inputs.eks-cluster }}
           helm upgrade --install $HELM_RELEASE $HELM_REPOSITORY -n $HELM_NAMESPACE -f $HELM_DEFAULT_VALUES -f $HELM_ENV_VALUES
 
