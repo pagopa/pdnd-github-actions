@@ -68,6 +68,7 @@ jobs:
         run: |
           pwd
           ls -la
+          cat .k8s/helm/Chart.yaml
           helm package .k8s/helm --version $CHART_VERSION --app-version $APP_VERSION
           ls -la
           cat .k8s/helm/Chart.yaml
