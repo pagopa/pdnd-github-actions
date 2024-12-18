@@ -32,8 +32,8 @@ jobs:
     outputs:
       runner_label: ${{ steps.create_runner.outputs.runner_label }}
 
-  prepare-helm-update:
-    name: Prepare Helm Chart Update
+  update-heln-and-deploy:
+    name: Update Helm Chart aand Deploy to k8s
     needs: create-runner
     runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
     steps:
@@ -79,37 +79,17 @@ jobs:
           branch: ${{ github.ref_name }}
           commit_message: "Update Helm chart to version ${{ steps.increment_version.outputs.new_chart_version }}"
           file_pattern: '.k8s/helm/Chart.yaml .k8s/helm/values.yaml'
-
-  deploy-to-k8s:
-    name: Deploy to Kubernetes
-    needs:
-      - create-runner
-      - prepare-helm-update
-    runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
-    steps:
-      - name: Checkout Repository
-        id: checkout
-        uses: actions/checkout@v4
       - name: Get Target Namespace
         id: deploy_namespace
         run: |
           echo "deploy_namespace=$(yq e '.namespace' .k8s/helm/values.yaml)" >> "$GITHUB_OUTPUT"
-
-      - name: Login to AWS ECR
-        uses: aws-actions/amazon-ecr-login@v2
-      - name: Pull Latest Helm Chart from ECR
-        env:
-          REGISTRY: ${{ secrets.AWS_ECR_REGISTRY }}
-          CHART: ${{ github.event.repository.name }}
-        run: |
-          mkdir -p charts
-          helm pull oci://$REGISTRY/charts/$CHART --untar --version $(helm search repo oci://$REGISTRY/charts/$CHART -o json | jq -r '.[0].version') --destination charts
       - name: Deploy to K8S via Helm
+        id: helm_deploy
         env:
           HELM_RELEASE: ${{ github.event.repository.name }}
-          HELM_REPOSITORY: charts/${{ github.event.repository.name }}
+          HELM_REPOSITORY: .k8s/helm
+          HELM_DEFAULT_VALUES: .k8s/helm/values.yaml
           HELM_NAMESPACE: ${{ steps.deploy_namespace.outputs.deploy_namespace }}
-          HELM_DEFAULT_VALUES: charts/${{ github.event.repository.name }}/values.yaml
           HELM_ENV_VALUES: .k8s/helm/env-values/${{ inputs.deploy-environment }}.yaml
         run: |
           pwd
@@ -123,8 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - create-runner
-      - prepare-helm-update
-      - deploy-to-k8s
+      - update-heln-and-deploy
     permissions:
       id-token: write
       contents: read
