@@ -101,6 +101,8 @@ jobs:
           HELM_NAMESPACE: ${{ steps.deploy_namespace.outputs.deploy_namespace }}
           HELM_ENV_VALUES: .k8s/helm/env-values/${{ inputs.deploy-environment }}.yaml
         run: |
+          pwd
+          ls -la
           aws eks update-kubeconfig --region eu-central-1 --name ${{ inputs.eks-cluster }}
           helm upgrade --install $HELM_RELEASE $HELM_REPOSITORY -n $HELM_NAMESPACE -f $HELM_DEFAULT_VALUES -f $HELM_ENV_VALUES
 
