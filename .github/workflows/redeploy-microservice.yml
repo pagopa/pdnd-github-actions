@@ -40,6 +40,9 @@ jobs:
       - name: Checkout Repository
         id: checkout
         uses: actions/checkout@v4
+      - name: Login to AWS ECR
+        id: ecr_login
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2
       - name: Get Current Chart Version
         id: current_version
         run: |
@@ -55,6 +58,19 @@ jobs:
           new_version=${{ steps.increment_version.outputs.new_chart_version }}
           yq e ".version = \"$new_version\"" -i .k8s/helm/Chart.yaml
           yq e ".appVersion = \"$new_version\"" -i .k8s/helm/Chart.yaml
+      - name: Push Helm Chart to AWS ECR
+        id: push_chart
+        env:
+          REGISTRY: ${{ steps.ecr_login.outputs.registry }}
+          CHART_VERSION: ${{ steps.increment_version.outputs.new_chart_version }}
+          APP_VERSION: ${{ steps.increment_version.outputs.new_chart_version }}
+          CHART: ${{ github.event.repository.name }}
+        run: |
+          pwd
+          ls -la
+          helm package .k8s/helm --version $CHART_VERSION --app-version $APP_VERSION
+          ls -la
+          helm push $CHART-$CHART_VERSION.tgz oci://$REGISTRY/charts
       - name: Commit Changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
