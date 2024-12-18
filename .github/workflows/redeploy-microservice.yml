@@ -64,7 +64,9 @@ jobs:
 
   deploy-to-k8s:
     name: Deploy to Kubernetes
-    needs: prepare-helm-update
+    needs:
+      - create-runner
+      - prepare-helm-update
     runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
     steps:
       - name: Checkout Repository
