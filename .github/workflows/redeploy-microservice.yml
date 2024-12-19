@@ -33,7 +33,7 @@ jobs:
       runner_label: ${{ steps.create_runner.outputs.runner_label }}
 
   update-heln-and-deploy:
-    name: Update Helm Chart aand Deploy to k8s
+    name: Update Helm Chart and Deploy to k8s
     needs: create-runner
     runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
     steps:
