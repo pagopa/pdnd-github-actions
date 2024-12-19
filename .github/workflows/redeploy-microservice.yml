@@ -32,7 +32,7 @@ jobs:
     outputs:
       runner_label: ${{ steps.create_runner.outputs.runner_label }}
 
-  update-heln-and-deploy:
+  update-helm-and-deploy:
     name: Update Helm Chart and Deploy to k8s
     needs: create-runner
     runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
@@ -44,6 +44,15 @@ jobs:
         id: current_version
         run: |
           echo "current_chart_version=$(yq e '.version' .k8s/helm/Chart.yaml)" >> "$GITHUB_OUTPUT"
+      - name: Packege chart
+        id: package_chart
+        env:
+          REGISTRY: ${{ steps.ecr_login.outputs.registry }}
+          CHART_VERSION: ${{ steps.increment_version.outputs.new_chart_version }}
+          APP_VERSION: ${{ steps.increment_version.outputs.new_chart_version }}
+          CHART: ${{ github.event.repository.name }}
+        run: |
+          helm package .k8s/helm --version $CHART_VERSION --app-version $APP_VERSION
       - name: Get Target Namespace
         id: deploy_namespace
         run: |
@@ -65,7 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - create-runner
-      - update-heln-and-deploy
+      - update-helm-and-deploy
     permissions:
       id-token: write
       contents: read
