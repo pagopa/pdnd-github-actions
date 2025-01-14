@@ -1,0 +1,113 @@
+name: Backup Cde
+
+on:
+  workflow_call:
+    inputs:
+      vc-name:
+        description: 'Virtual Cluster Name'
+        required: true
+        default: ''
+        type: string
+
+jobs:
+  create-runner:
+    name: Create Runner
+    if: github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Create Runner
+        id: create-runner
+        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
+        with:
+          name: ${{ github.event.repository.name }}
+          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+          namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
+          image: ${{ vars.RUNNER_DOCKER_IMAGE}}
+          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
+          docker_enabled: true
+    outputs:
+      runner_label: ${{ steps.create-runner.outputs.runner_label }}
+
+  backup:
+    name: Backup
+    runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
+    needs:
+      - create-runner
+    if: always()
+    steps:
+      - name: setup cdp cli
+        uses: pagopa/pdnd-github-actions/setup-cdp-cli@b6de1cd44031f1b3c8546864b55b713f4d5fdd28
+        with:
+          version: "0.9.107"
+          access_key_id: "${{ secrets.GH_CDP_ACCESS_KEY_ID }}"
+          private_key: "${{ secrets.GH_CDP_PRIVATE_KEY }}"
+      - name: Get Cluster Info
+        run: |
+          CLUSTER_ID=$(cdp de list-services --output json | jq -r '.services[] | .clusterId')
+          if [ -z "$CLUSTER_ID" ]; then
+            echo "Cluster ID not found."
+            exit 1
+          fi
+          VC_UI_URL=$(cdp de list-vcs --cluster-id "$CLUSTER_ID" --output json | jq -r --arg VC_NAME "${{ inputs.vc-name }}" '.vcs[] | select(.vcName==${{ inputs.vc-name }}) | .VcUiUrl')
+          if [ -z "$VC_UI_URL" ]; then
+            echo "Virtual Cluster '${{ inputs.vc-name }}' not found."
+            exit 1
+          fi
+          VC_ENDPOINT="${VC_UI_URL/dex\/ui\//api/v1/}"
+          echo "vc_ui_url=${VC_UI_URL}" >> "$GITHUB_ENV"
+          echo "vcluster-endpoint=${VC_ENDPOINT}" >> "$GITHUB_ENV"
+      - name: Setup CDE CLI
+        uses: pagopa/pdnd-github-actions/setup-cde-cli@b6de1cd44031f1b3c8546864b55b713f4d5fdd28
+        with:
+          version: "1.20.3"
+          access_key_id: ${{ secrets.GH_CDP_ACCESS_KEY_ID }}
+          private_key: ${{ secrets.GH_CDP_PRIVATE_KEY }}
+          codeartifact_domain: ${{ vars.CODEARTIFACT_DOMAIN }}
+          codeartifact_repository: ${{ vars.CODEARTIFACT_REPOSITORY }}
+          vcluster_endpoint: ${{ env.vcluster-endpoint }}
+      
+      - name: Create and Upload Backup to S3
+        run: |
+          cde backup create \
+            --remote-storage \
+            --remote-path ${{ inputs.vc-name }} \
+            --remote-name $(date +%Y-%m-%d).zip \
+            --include-jobs \
+            --include-job-resources \
+            --include-resources
+          echo -e "\033[1;32m✅ Backup uploaded to S3 \033[0m"                                                                                      
+      - name: Slack Notification
+        uses: ravsamhq/notify-slack-action@be814b201e233b2dc673608aa46e5447c8ab13f2 # v2.5.0
+        if: always()
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          status: ${{ job.status }}
+          notification_title: "{workflow} has {status_message}"
+          message_format: "{emoji} *{workflow}* <https://github.com/{repo}/actions/runs/${{ github.run_id }}|${{github.ref_name}}> {status_message} in <{repo_url}|{repo}>"
+          footer: "<{repo_url}|Repo> | <{workflow_url}|Workflow>"
+          notify_when: "success,failure,warnings"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_OP_URL }}
+  destroy_runner:
+    name: Destroy Runner
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    if: ${{ always() && !contains(needs.create-runner.result, 'failure')}}
+    needs:
+      - create-runner
+      - backup
+    steps:
+      - name: Destroy Runner
+        id: destroy_runner
+        uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
+        with:
+          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
+          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
+          runner_label: ${{ needs.create-runner.outputs.runner_label }}
+          namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }}
