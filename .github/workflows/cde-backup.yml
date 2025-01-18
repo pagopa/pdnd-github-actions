@@ -51,8 +51,7 @@ jobs:
           if [ -z "$CLUSTER_ID" ]; then
             echo "Cluster ID not found."
             exit 1
-          fi
-          VC_UI_URL=$(cdp de list-vcs --cluster-id "$CLUSTER_ID" --output json | jq -r --arg VC_NAME "${{ inputs.vc-name }}" '.vcs[] | select(.vcName==${{ inputs.vc-name }}) | .VcUiUrl')
+          VC_UI_URL=$(cdp de list-vcs --cluster-id "$CLUSTER_ID" --output json | jq -r --arg VC_NAME "${{ inputs.vc-name }}" '.vcs[] | select(.vcName==$VC_NAME) | .VcUiUrl')
           if [ -z "$VC_UI_URL" ]; then
             echo "Virtual Cluster '${{ inputs.vc-name }}' not found."
             exit 1
