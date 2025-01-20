@@ -57,7 +57,7 @@ jobs:
             echo "Virtual Cluster '${{ inputs.vc-name }}' not found."
             exit 1
           fi
-          VC_ENDPOINT="${VC_UI_URL/dex\/ui\//api/v1/}"
+          VC_ENDPOINT="${VC_UI_URL/ui\//api/v1}"
           echo "vc_ui_url=${VC_UI_URL}" >> "$GITHUB_ENV"
           echo "vcluster-endpoint=${VC_ENDPOINT}" >> "$GITHUB_ENV"
       - name: Setup CDE CLI
