@@ -72,9 +72,6 @@ jobs:
       
       - name: Create and Upload Backup to S3
         run: |
-          #TEST CDE
-          cde job list --vcluster-endpoint "${{ env.vcluster-endpoint }}"
-
           cde backup create \
             --remote-storage \
             --remote-path ${{ inputs.vc-name }} \
@@ -82,8 +79,7 @@ jobs:
             --include-jobs \
             --include-job-resources \
             --include-resources \
-            --vcluster-endpoint "${{ env.vcluster-endpoint }}" \
-            --verbose
+            --vcluster-endpoint "${{ env.vcluster-endpoint }}"
           echo -e "\033[1;32m✅ Backup uploaded to S3 \033[0m"                                                                                      
       - name: Slack Notification
         uses: ravsamhq/notify-slack-action@be814b201e233b2dc673608aa46e5447c8ab13f2 # v2.5.0
