@@ -72,6 +72,9 @@ jobs:
       
       - name: Create and Upload Backup to S3
         run: |
+          #TEST CDE
+          cde job list --vcluster-endpoint "${{ env.vcluster-endpoint }}"
+
           cde backup create \
             --remote-storage \
             --remote-path ${{ inputs.vc-name }} \
