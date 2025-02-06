@@ -166,7 +166,7 @@ jobs:
             access_key_id: ${{  fromJson(needs.parse-config.outputs.parsed_config).cde_acces_keys.access_key_id }}
             private_key: ${{  fromJson(needs.parse-config.outputs.parsed_config).cde_acces_keys.private_key }}
             codeartifact_domain: ${{ vars.CODEARTIFACT_DOMAIN }}
-            codeartifact_repository: ${{ vars.CODEARTIFACT_INTERNAL_REPO }}
+            codeartifact_repository: ${{ vars.CODEARTIFACT_REPOSITORY }}
             vcluster_endpoint:  ${{ inputs.vcluster-endpoint }}
       - name: Run commands
         working-directory: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
