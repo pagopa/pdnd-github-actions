@@ -227,7 +227,7 @@ jobs:
             access_key_id: ${{ secrets.GH_CDP_ACCESS_KEY_ID }}
             private_key: ${{ secrets.GH_CDP_PRIVATE_KEY }}
             codeartifact_domain: ${{ vars.CODEARTIFACT_DOMAIN }}
-            codeartifact_repository: ${{ vars.CODEARTIFACT_INTERNAL_REPO }}
+            codeartifact_repository: ${{ vars.CODEARTIFACT_REPOSITORY }}
             vcluster_endpoint:  ${{ inputs.vcluster-endpoint }}
       - name: Run commands
         working-directory: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
