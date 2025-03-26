@@ -4,7 +4,7 @@ on:
 jobs:
   create_runner:
     name: Create runner
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.ref_type == 'tag'
     # These permissions are needed to interact with GitHub's OIDC Token endpoint.
     permissions:
@@ -69,7 +69,7 @@ jobs:
           env:
             SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
   destroy_runner:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       id-token: write
       contents: read

@@ -9,7 +9,7 @@ on:
 jobs:
     create_runner:
       name: Create runner
-      runs-on: ubuntu-latest
+      runs-on: ubuntu-24.04
       if: github.ref_type == 'tag'
       steps:
         - name: Create Runner
@@ -92,7 +92,7 @@ jobs:
             SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     destroy_runner:
       name: Destroy runner
-      runs-on: ubuntu-latest
+      runs-on: ubuntu-24.04
       if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
       needs: [create_runner, release]
       steps:

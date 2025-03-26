@@ -17,7 +17,7 @@ on:
 jobs:
   create_runner:
     name: Create Runner
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       id-token: write
       contents: read
@@ -64,7 +64,7 @@ jobs:
         deploy_configs: ${{ steps.extract-deploy-configs.outputs.result }}
   destroy_runner:
     name: Destroy Runner
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
         id-token: write
         contents: read

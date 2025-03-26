@@ -9,7 +9,7 @@ on:
 jobs:
   create_runner:
     name: Create Runner
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       id-token: write
       contents: read
@@ -193,7 +193,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
   destroy_runner:
     name: Destroy Runner
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
         id-token: write
         contents: read
