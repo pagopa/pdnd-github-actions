@@ -25,7 +25,7 @@ on:
 jobs:
   create-runner:
     name: Create Runner
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       id-token: write
       contents: read
@@ -80,7 +80,7 @@ jobs:
     needs: 
       - create-runner
       - prepare-release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: needs.prepare-release.outputs.release_pr_head == 'null'
     steps:
       - name: Log Message for Missing Release
@@ -224,7 +224,7 @@ jobs:
           repo-token: ${{ secrets.PAT_BOT }}
   destroy-runner:
     name: Destroy Runner
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs:
       - create-runner
       - prepare-release
