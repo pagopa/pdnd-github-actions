@@ -28,9 +28,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       id-token: write
-      issues: write
-      contents: write
-      pull-requests: write
+      contents: read
     steps:
       - name: Create Runner
         id: create_runner
@@ -51,6 +49,7 @@ jobs:
       - create-runner
     permissions:
       contents: write
+      issues: write
       pull-requests: write
       id-token: write
     runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
@@ -187,6 +186,7 @@ jobs:
       - build-microservice
     permissions:
       contents: write
+      issues: write
       pull-requests: write
       id-token: write
     runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
