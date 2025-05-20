@@ -49,6 +49,7 @@ jobs:
       - create-runner
     permissions:
       contents: write
+      issues: write
       pull-requests: write
       id-token: write
     runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
@@ -185,6 +186,7 @@ jobs:
       - build-microservice
     permissions:
       contents: write
+      issues: write
       pull-requests: write
       id-token: write
     runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
