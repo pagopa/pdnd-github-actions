@@ -177,7 +177,7 @@ jobs:
         run: |
           if [ -n "${{ inputs.infra-repository }}" ]; then
             echo "MODE=infra" >> "$GITHUB_OUTPUT"
-            echo "IAC_BASE_PATH=infra-repo/${{ inputs.infra-project-path }}" >> "$GITHUB_OUTPUT"
+            echo "IAC_BASE_PATH=${{ inputs.infra-repository }}/${{ inputs.infra-project-path }}" >> "$GITHUB_OUTPUT"
             echo "COMMIT_FILE_PATTERN=${{ inputs.infra-project-path }}/.k8s/helm/values.yaml ${{ inputs.infra-project-path }}/.k8s/helm/Chart.yaml" >> "$GITHUB_OUTPUT"
           else
             echo "MODE=local" >> "$GITHUB_OUTPUT"
@@ -189,8 +189,8 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
         with:
           repository: ${{ inputs.infra-repository }}
-          path: 'infra-repo'
-          token: ${{ secrets.INFRA_REPO_PAT }}
+          path: ${{ inputs.infra-project-path }}
+          token: ${{ secrets.PAT_BOT }}
           ref: ${{ inputs.infra-repo-branch }}
       - name: Define Full IaC File Paths
         id: iac_file_paths
