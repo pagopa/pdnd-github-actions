@@ -21,6 +21,28 @@ on:
         required: false
         default: true
         type: boolean
+      infra-repository:
+        description: "Name of the infrastructure repository (e.g., pagopa/pdnd-dtd-infra). Only for DTD projects"
+        required: false
+        default: ""
+        type: string
+      infra-project-path:
+        description: "Path to the project's IaC files within the pdnd-dtd-infra (e.g., pdnd-dtd-pad26-assevera141)"
+        required: false
+        default: ""
+        type: string
+      infra-repo-branch:
+        description: "Branch in the infra-repository to commit IaC changes to"
+        default: "main"
+        required: false
+        type: string
+    secrets:
+      AWS_RUNNER_DEPLOY_ROLE:
+        required: true
+      PAT_BOT:
+        required: true
+      INFRA_REPO_PAT:
+        required: false
 
 jobs:
   create-runner:
@@ -43,6 +65,7 @@ jobs:
           docker_enabled: true
     outputs:
       runner_label: ${{ steps.create_runner.outputs.runner_label }}
+
   prepare-release:
     name: Prepare Release
     needs:
@@ -76,16 +99,18 @@ jobs:
     outputs:
       release_pr_number: ${{ steps.pr_number.outputs.release_pr_number }}
       release_pr_head: ${{ steps.pr_head.outputs.release_pr_head }}
+
   skip-build:
     name: Skip Build
-    needs: 
+    needs:
       - create-runner
       - prepare-release
     runs-on: ubuntu-24.04
     if: needs.prepare-release.outputs.release_pr_head == 'null'
     steps:
       - name: Log Message for Missing Release
-        run: echo "No new release was created by release-please. Skipping the build-microservice job."
+        run: echo "No new release was created by release-please. Skipping the build job."
+
   build-microservice:
     name: Build Microservice
     needs:
@@ -93,6 +118,9 @@ jobs:
       - prepare-release
     if: needs.prepare-release.outputs.release_pr_head != 'null'
     runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout
         id: checkout
@@ -126,12 +154,14 @@ jobs:
           REPOSITORY: ${{ inputs.repository-name }}
           DOCKER_BUILDKIT: 1
         run: |
+          TARGET_DIR="."
           if [ -n "${{ inputs.dockerfile-directory }}" ]; then
-            cd ${{ inputs.dockerfile-directory }}
+            TARGET_DIR="${{ inputs.dockerfile-directory }}"
           fi
           docker build \
-              --build-arg DOCKER_REGISTRY_URI=$REGISTRY \
-              -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest .
+            --build-arg DOCKER_REGISTRY_URI=$REGISTRY \
+            -t $REGISTRY/$REPOSITORY:$IMAGE_TAG -t $REGISTRY/$REPOSITORY:latest \
+            "$TARGET_DIR"
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
           docker push $REGISTRY/$REPOSITORY:latest
       - name: Get Image Digest
@@ -141,43 +171,73 @@ jobs:
           IMAGE_TAG: ${{ steps.release_version.outputs.release_version }}
           REPOSITORY: ${{ inputs.repository-name }}
         run: |
-          echo "image_digest=$(aws ecr describe-images --repository-name $REPOSITORY --image-ids imageTag=$IMAGE_TAG | jq -r '.[] | .[].imageDigest')" >> "$GITHUB_OUTPUT"
+          echo "image_digest=$(aws ecr describe-images --repository-name $REPOSITORY --image-ids imageTag=$IMAGE_TAG | jq -r '.imageDetails[0].imageDigest')" >> "$GITHUB_OUTPUT"
+      - name: Determine IaC Context (Paths and Mode)
+        id: iac_context
+        run: |
+          if [ -n "${{ inputs.infra-repository }}" ]; then
+            echo "MODE=infra" >> "$GITHUB_OUTPUT"
+            echo "IAC_BASE_PATH=infra-repo/${{ inputs.infra-project-path }}" >> "$GITHUB_OUTPUT"
+            echo "COMMIT_FILE_PATTERN=${{ inputs.infra-project-path }}/.k8s/helm/values.yaml ${{ inputs.infra-project-path }}/.k8s/helm/Chart.yaml" >> "$GITHUB_OUTPUT"
+          else
+            echo "MODE=local" >> "$GITHUB_OUTPUT"
+            echo "IAC_BASE_PATH=."
+            echo "COMMIT_FILE_PATTERN=.k8s/helm/values.yaml .k8s/helm/Chart.yaml" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Checkout Infrastructure Repository (if applicable)
+        if: steps.iac_context.outputs.MODE == 'infra'
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+        with:
+          repository: ${{ inputs.infra-repository }}
+          path: 'infra-repo'
+          token: ${{ secrets.INFRA_REPO_PAT }}
+          ref: ${{ inputs.infra-repo-branch }}
+      - name: Define Full IaC File Paths
+        id: iac_file_paths
+        run: |
+          echo "values_file=${{ steps.iac_context.outputs.IAC_BASE_PATH }}/.k8s/helm/values.yaml" >> "$GITHUB_OUTPUT"
+          echo "chart_file=${{ steps.iac_context.outputs.IAC_BASE_PATH }}/.k8s/helm/Chart.yaml" >> "$GITHUB_OUTPUT"
+          echo "helm_dir=${{ steps.iac_context.outputs.IAC_BASE_PATH }}/.k8s/helm" >> "$GITHUB_OUTPUT"
       - name: Update Digest
         if: ${{ inputs.build-image == true }}
-        id: update_digest
         env:
           IMAGE_DIGEST: ${{ steps.image_digest.outputs.image_digest }}
         run: |
-          yq e '${{ inputs.docker-image-to-update }} = env(IMAGE_DIGEST)' -i .k8s/helm/values.yaml
+          yq e '${{ inputs.docker-image-to-update }} = strenv(IMAGE_DIGEST)' -i "${{ steps.iac_file_paths.outputs.values_file }}"
       - name: Update Helm Chart
-        id: update_chart
         env:
-          REPOSITORY: ${{ inputs.repository-name }}
-          IMAGE_TAG: ${{ steps.release_version.outputs.release_version }}
           CHART_VERSION: ${{ steps.release_version.outputs.release_version }}
           APP_VERSION: ${{ steps.release_version.outputs.release_version }}
         run: |
-          yq e '.version = env(CHART_VERSION)' -i .k8s/helm/Chart.yaml
-          yq e '.appVersion = env(APP_VERSION)' -i .k8s/helm/Chart.yaml
+          yq e '.version = strenv(CHART_VERSION)' -i "${{ steps.iac_file_paths.outputs.chart_file }}"
+          yq e '.appVersion = strenv(APP_VERSION)' -i "${{ steps.iac_file_paths.outputs.chart_file }}"
       - name: Push Helm Chart to AWS ECR
-        id: push_chart
         env:
           REGISTRY: ${{ steps.ecr_login.outputs.registry }}
           CHART_VERSION: ${{ steps.release_version.outputs.release_version }}
           APP_VERSION: ${{ steps.release_version.outputs.release_version }}
-          CHART: ${{ github.event.repository.name }}
+          CHART_NAME: ${{ inputs.repository-name }}
         run: |
-          helm package .k8s/helm --version $CHART_VERSION --app-version $APP_VERSION
-          helm push $CHART-$CHART_VERSION.tgz oci://$REGISTRY/charts
-      - name: Commit Helm Values
-        id: commit_values
+          helm package "${{ steps.iac_file_paths.outputs.helm_dir }}" --version $CHART_VERSION --app-version $APP_VERSION
+          helm push $CHART_NAME-$CHART_VERSION.tgz oci://$REGISTRY/charts
+      - name: Commit Helm Changes to Infra Repo (if applicable)
+        if: steps.iac_context.outputs.MODE == 'infra'
+        uses: stefanzweifel/git-auto-commit-action@8621497c8c39c72f3e2a999a26b4ca1b5058a842 # v5
+        with:
+          repository: infra-repo
+          branch: ${{ inputs.infra-repo-branch }}
+          commit_message: "Autocommit: [${{ inputs.repository-name }}] Update IaC to ${{ steps.release_version.outputs.release_version }}"
+          file_pattern: ${{ steps.iac_context.outputs.COMMIT_FILE_PATTERN }}
+      - name: Commit Helm Changes to Microservice PR Branch (if applicable)
+        if: steps.iac_context.outputs.MODE == 'local'
         uses: stefanzweifel/git-auto-commit-action@8621497c8c39c72f3e2a999a26b4ca1b5058a842 # v5
         with:
           branch: ${{ needs.prepare-release.outputs.release_pr_head }}
-          commit_message: "Autocommit: update ${{ inputs.docker-image-to-update }} and Helm versions"
-          file_pattern: '.k8s/helm/values.yaml .k8s/helm/Chart.yaml'
+          commit_message: "Autocommit: update ${{ inputs.docker-image-to-update }} and Helm versions to ${{ steps.release_version.outputs.release_version }}"
+          file_pattern: ${{ steps.iac_context.outputs.COMMIT_FILE_PATTERN }}
     outputs:
       release_version: ${{ steps.release_version.outputs.release_version }}
+
   finalize-release:
     name: Finalize Release
     needs:
@@ -213,17 +273,19 @@ jobs:
           MERGE_DELETE_BRANCH: true
           MERGE_COMMIT_MESSAGE: "Automerge PR #${{ needs.prepare-release.outputs.release_pr_number }}"
       - name: Release-Please
-        id: release_please
+        id: release_please_final
         uses: googleapis/release-please-action@7987652d64b4581673a76e33ad5e98e3dd56832f # v4.1.3
         with:
           skip-github-release: false
-          skip-github-pull-request: false
+          skip-github-pull-request: true
       - name: Label Pull Request
         id: label_pr
+        if: needs.prepare-release.outputs.release_pr_number != ''
         uses: actions/labeler@8558fd74291d67161a8a78ce36a881fa63b766a9 # v5
         with:
           pr-number: ${{ needs.prepare-release.outputs.release_pr_number }}
           repo-token: ${{ secrets.PAT_BOT }}
+
   destroy-runner:
     name: Destroy Runner
     runs-on: ubuntu-24.04
