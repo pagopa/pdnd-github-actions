@@ -192,6 +192,12 @@ jobs:
           path: ${{ inputs.infra-project-path }}
           token: ${{ secrets.PAT_BOT }}
           ref: ${{ inputs.infra-repo-branch }}
+      - name: Debug
+        id: debg
+        run: |
+          pwd
+          ls -la
+          tree -a
       - name: Define Full IaC File Paths
         id: iac_file_paths
         run: |
