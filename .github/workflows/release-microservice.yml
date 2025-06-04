@@ -177,7 +177,7 @@ jobs:
         run: |
           if [ -n "${{ inputs.infra-repository }}" ]; then
             echo "MODE=infra" >> "$GITHUB_OUTPUT"
-            echo "IAC_BASE_PATH=${{ inputs.infra-repository }}/${{ inputs.infra-project-path }}" >> "$GITHUB_OUTPUT"
+            echo "IAC_BASE_PATH=${{ inputs.infra-project-path }}" >> "$GITHUB_OUTPUT"
             echo "COMMIT_FILE_PATTERN=${{ inputs.infra-project-path }}/.k8s/helm/values.yaml ${{ inputs.infra-project-path }}/.k8s/helm/Chart.yaml" >> "$GITHUB_OUTPUT"
           else
             echo "MODE=local" >> "$GITHUB_OUTPUT"
