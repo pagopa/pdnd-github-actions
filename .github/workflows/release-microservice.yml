@@ -197,7 +197,7 @@ jobs:
         with:
           repository: ${{ steps.iac_context.outputs.EFFECTIVE_INFRA_REPO_NAME }}
           path: 'infra-repo' 
-          token: ${{ secrets.INFRA_REPO_PAT }} 
+          token: ${{ secrets.PAT_BOT }} 
           ref: ${{ inputs.infra-repo-branch }}
       - name: Update Digest
         if: ${{ inputs.build-image == true }}
