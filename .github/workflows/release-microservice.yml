@@ -197,6 +197,8 @@ jobs:
         run: |
           pwd
           ls -la
+          cd ${{ steps.iac_context.outputs.IAC_BASE_PATH }}
+          ls -la
       - name: Define Full IaC File Paths
         id: iac_file_paths
         run: |
