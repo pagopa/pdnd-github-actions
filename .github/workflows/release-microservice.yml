@@ -197,7 +197,6 @@ jobs:
         run: |
           pwd
           ls -la
-          tree -a
       - name: Define Full IaC File Paths
         id: iac_file_paths
         run: |
