@@ -6,6 +6,11 @@ on:
         description: 'Deploy on spark or airflow'
         required: true
         type: string
+      skip-deploy:
+        description: 'If true, it skips the deploy jobs and proceeds to release'
+        required: false
+        type: boolean
+        default: true
 jobs:
   create_runner:
     name: Create Runner
@@ -102,7 +107,7 @@ jobs:
     outputs:
         configs: ${{ steps.compute-release.outputs.result }}
   deploy-airflow:
-      if:  inputs.deploy-type  == 'airflow'
+      if:  inputs.deploy-type  == 'airflow' && !inputs.skip-deploy
       needs:
         - prepare-release
       strategy:
@@ -117,7 +122,7 @@ jobs:
           config-json: ${{ toJson(matrix.target) }}
           vcluster-endpoint:  "${{ vars.VCLUSTER_ENDPOINT_PROD }}"
   deploy-spark:
-    if:  inputs.deploy-type  == 'spark'
+    if:  inputs.deploy-type  == 'spark' && !inputs.skip-deploy
     needs:
       - prepare-release
     strategy:
@@ -139,7 +144,7 @@ jobs:
       - prepare-release
       - deploy-airflow
       - deploy-spark
-    if: ${{ !failure() && !cancelled() }}
+    if: always() && ${{ !failure() && !cancelled() }}
     strategy:
       max-parallel: 1
       fail-fast: false

@@ -11,6 +11,7 @@ This GitHub Action automates the deployment of Airflow or Spark jobs on the CDE 
 ### Inputs
 
 - `deploy-type`: Specify the type of job to deploy, either `airflow` or `spark`.
+- `skip-deploy`: Specify whether to skip job deploy.
 
 ### Directory Structure
 
@@ -30,7 +31,7 @@ The workflow expects deployment descriptors to be stored in the following direct
    - If the paths match, the corresponding configuration is marked as deployable.
 
 3. **Deployment Call**:
-   - Based on the `deploy-type` input, the workflow calls `deploy-cde-airflow` or `deploy-cde-spark` on every deployable configuration.
+   - Based on the `deploy-type` and `skip-deploy` inputs, the workflow calls `deploy-cde-airflow` or `deploy-cde-spark` on every deployable configuration or is skipped.
 
 4. **Tagging and Releasing**:
    - If the deployment succeeds, a new GitHub tag and release are created.
