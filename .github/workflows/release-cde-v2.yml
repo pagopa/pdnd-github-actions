@@ -107,7 +107,7 @@ jobs:
     outputs:
         configs: ${{ steps.compute-release.outputs.result }}
   deploy-airflow:
-      if:  inputs.deploy-type  == 'airflow' && inputs.skip-deploy == false
+      if:  inputs.deploy-type  == 'airflow' && !inputs.skip-deploy
       needs:
         - prepare-release
       strategy:
@@ -122,7 +122,7 @@ jobs:
           config-json: ${{ toJson(matrix.target) }}
           vcluster-endpoint:  "${{ vars.VCLUSTER_ENDPOINT_PROD }}"
   deploy-spark:
-    if:  inputs.deploy-type  == 'spark' && inputs.skip-deploy == false
+    if:  inputs.deploy-type  == 'spark' && !inputs.skip-deploy
     needs:
       - prepare-release
     strategy:
