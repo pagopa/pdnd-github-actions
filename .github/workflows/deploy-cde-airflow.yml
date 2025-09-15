@@ -101,11 +101,32 @@ jobs:
             const command_sequence = [];
             let opts = buildOptions(config.job)
 
-            const job_delete_cmd = `
+            const job_delete_and_wait_cmd = `
+                echo "Verifying status of CDE job '${config.job.name}'..."
                 if cde job describe --name ${config.job.name} >/dev/null 2>&1; then
-                  cde job delete --name ${config.job.name}
-                fi;
+                    echo "Job '${config.job.name}' exists. Deleting it now..."
+                    cde job delete --name ${config.job.name}
+                    
+                    echo "Waiting for job to be fully deleted from CDE..."
+                    ATTEMPTS=0
+                    MAX_ATTEMPTS=36 # Timeout: 36 tentativi * 5 secondi = 180s (3 minuti)
+
+                    while cde job describe --name ${config.job.name} >/dev/null 2>&1; do
+                        ATTEMPTS=$((ATTEMPTS + 1))
+                        if [ $ATTEMPTS -ge $MAX_ATTEMPTS ]; then
+                            echo "Error: Timeout reached. Job '${config.job.name}' still exists after 3 minutes."
+                            exit 1
+                        fi
+                        echo "Job still present, waiting 5 seconds... (Attempt ${ATTEMPTS}/${MAX_ATTEMPTS})"
+                        sleep 5
+                    done
+
+                    echo "Confirmation: Job '${config.job.name}' has been successfully deleted."
+                else
+                    echo "Job '${config.job.name}' does not exist. No action needed."
+                fi
             `;
+
             command_sequence.push(job_delete_cmd)
             const job_create_cmd = `
                 cde job create --type="airflow" ${opts}
