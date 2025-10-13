@@ -45,7 +45,17 @@ jobs:
       release_pr_number: ${{ steps.release_info.outputs.release_pr_number }}
       release_pr_head: ${{ steps.release_info.outputs.release_pr_head }}
 
-  prepare-and-promote:
+  skip-build:
+    name: Skip Promotion
+    needs: 
+      - prepare-release
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+    if: needs.prepare-release.outputs.release_pr_head == 'null'
+    steps:
+      - name: Log Message for Missing Release
+        run: echo "No new release was created by release-please. Skipping the build-microservice job."
+
+  promote:
     name: Prepare and Promote to PROD
     needs:
       - prepare-release
