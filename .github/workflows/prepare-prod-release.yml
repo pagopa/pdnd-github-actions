@@ -173,16 +173,36 @@ jobs:
       pull-requests: write
     runs-on: ${{ inputs.codebuild-runner }}
     steps:
-      - name: Checkout Base Branch
-        uses: actions/checkout@v4
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
         with:
           ref: ${{ github.base_ref }}
-
-      - name: Approve and Merge Release PR
-        uses: pascalgn/automerge-action@v0.16.2
+      - name: Approve Release PR
+        id: approve_pr
+        uses: hmarr/auto-approve-action@f0939ea97e9205ef24d872e76833fa908a770363 # v4
+        with:
+          pull-request-number: ${{ needs.prepare-release.outputs.release_pr_number }}
+          github-token: ${{ secrets.PAT_BOT }}
+      - name: Merge Release PR
+        id: merge_pr
+        uses: pascalgn/automerge-action@58724c982461efbb7865b3762d7bff0d4756f57a # v0.16.2
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_BOT }}
           PULL_REQUEST: ${{ needs.prepare-release.outputs.release_pr_number }}
+          MERGE_LABELS: "autorelease: pending"
           MERGE_METHOD: squash
           MERGE_DELETE_BRANCH: true
-          MERGE_COMMIT_MESSAGE: "Automerge release PR #${{ needs.prepare-release.outputs.release_pr_number }}"
+          MERGE_COMMIT_MESSAGE: "Automerge PR #${{ needs.prepare-release.outputs.release_pr_number }}"
+      - name: Release-Please
+        id: release_please
+        uses: googleapis/release-please-action@7987652d64b4581673a76e33ad5e98e3dd56832f # v4.1.3
+        with:
+          skip-github-release: false
+          skip-github-pull-request: false
+      - name: Label Pull Request
+        id: label_pr
+        uses: actions/labeler@8558fd74291d67161a8a78ce36a881fa63b766a9 # v5
+        with:
+          pr-number: ${{ needs.prepare-release.outputs.release_pr_number }}
+          repo-token: ${{ secrets.PAT_BOT }}
