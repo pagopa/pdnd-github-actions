@@ -1,0 +1,205 @@
+name: "PROD | Prepare Release on Merge"
+
+on:
+  workflow_call:
+    inputs:
+      codebuild-runner:
+        description: "Codebuild runner name"
+        required: true
+        type: string
+      repository-name:
+        description: "repository-name"
+        default: ${{ github.event.repository.name }}
+        required: false
+        type: string
+
+jobs:
+  prepare-release:
+    name: Prepare Release
+    environment: prod
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+        with:
+          ref: ${{ github.base_ref }}
+      - name: Release-Please
+        id: release_please
+        uses: googleapis/release-please-action@7987652d64b4581673a76e33ad5e98e3dd56832f # v4.1.3
+        with:
+          skip-github-release: false
+          skip-github-pull-request: false
+      - name: Get Release PR Number
+        id: pr_number
+        run: |
+          echo "release_pr_number=$(jq -r '.number' <<< ${{ toJSON(steps.release_please.outputs.pr) }})" >> "$GITHUB_OUTPUT"
+      - name: Get Release PR Head Ref
+        id: pr_head
+        run: |
+          echo "release_pr_head=$(jq -r '.headBranchName' <<< ${{ toJSON(steps.release_please.outputs.pr) }})" >> "$GITHUB_OUTPUT"
+    outputs:
+      release_pr_number: ${{ steps.pr_number.outputs.release_pr_number }}
+      release_pr_head: ${{ steps.pr_head.outputs.release_pr_head }}
+
+  prepare-and-promote:
+    name: Prepare and Promote to PROD
+    needs:
+      - prepare-release
+    if: needs.prepare-release.outputs.release_pr_head != 'null'
+    environment: prod
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.prepare-release.outputs.release_pr_head }}
+
+      - name: Find merged PR
+        id: find_pr
+        uses: yu-iskw/merged-pr-info-action@v1.0.2
+        with:
+          github-token: ${{ secrets.PAT_BOT }}
+
+      - name: Login to DEV ECR
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registries: ${{ vars.DEV_AWS_ACCOUNT_ID }}
+
+      - name: Get Release Version
+        id: release_version
+        run: |
+          echo "release_version=$(jq -r '."."' .release-please-manifest.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Pull image from DEV and tag for PROD
+        id: promote_image
+        env:
+          DEV_ECR_URI: "${{ vars.DEV_AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
+          PROD_ECR_URI: "${{ vars.PROD_AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
+          REPOSITORY: ${{ github.event.repository.name }}
+          SOURCE_IMAGE_TAG: "pr-${{ steps.find_pr.outputs.pull-request-number }}"
+        run: |
+          PROD_IMAGE_TAG="v-$(date +%Y.%m.%d-%H%M%S)-${GITHUB_SHA::7}"
+          echo "prod_tag=$PROD_IMAGE_TAG" >> "$GITHUB_OUTPUT"
+          echo "Pulling image $SOURCE_IMAGE_TAG from DEV ECR..." 
+          docker pull $DEV_ECR_URI/$REPOSITORY:$SOURCE_IMAGE_TAG 
+
+          echo "Tagging image for PROD as $PROD_IMAGE_TAG..."
+          docker tag $DEV_ECR_URI/$REPOSITORY:$SOURCE_IMAGE_TAG $PROD_ECR_URI/$REPOSITORY:$PROD_IMAGE_TAG
+
+      - name: Create AWS ECR Docker Registry
+        id: ecr_docker_registry
+        uses: pagopa/pdnd-github-actions/create-ecr-repository@74cf3f8abfacd6814b924408a11b02f177f8f5a3
+        with:
+          repositoryName: ${{ github.event.repository.name }}
+      - name: Create AWS ECR Helm Repository
+        id: ecr_helm_repository
+        uses: pagopa/pdnd-github-actions/create-ecr-repository@74cf3f8abfacd6814b924408a11b02f177f8f5a3
+        with:
+          repositoryName: charts/${{ github.event.repository.name }}
+      - name: Login to PROD ECR
+        id: ecr_login_prod
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registries: ${{ vars.PROD_AWS_ACCOUNT_ID }}
+
+      - name: Push image to PROD ECR
+        id: push_image
+        env:
+          PROD_ECR_URI: "${{ vars.PROD_AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
+          REPOSITORY: ${{ github.event.repository.name }}
+          PROD_TAG: ${{ steps.promote_image.outputs.prod_tag }}
+        run: |
+          echo "Pushing image $PROD_IMAGE_TAG to PROD ECR..."
+          digest=$(docker push $PROD_ECR_URI/$REPOSITORY:$PROD_TAG| grep 'digest: sha256' | awk '{print $3}')
+          echo "prod_digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Update prod.yaml digest
+        run: |
+          yq e ".image.tag = \"${{ steps.push_image.outputs.prod_tag }}\"" -i .k8s/helm/env-values/prod.yaml
+          yq e ".image.digest = \"${{ steps.push_image.outputs.prod_digest }}\"" -i .k8s/helm/env-values/prod.yaml
+          
+
+      - name: Update and Push Helm Chart to PROD ECR
+        id: update_push_chart
+        env:
+          REPOSITORY: ${{ github.event.repository.name }}
+          IMAGE_TAG: ${{ steps.release_version.outputs.release_version }}
+          CHART_VERSION: ${{ steps.release_version.outputs.release_version }}
+          APP_VERSION: ${{ steps.release_version.outputs.release_version }}
+          REGISTRY: ${{ steps.ecr_login_prod.outputs.registry }}
+          CHART: ${{ github.event.repository.name }}
+        run: |
+          yq e '.version = env(CHART_VERSION)' -i .k8s/helm/Chart.yaml
+          yq e '.appVersion = env(APP_VERSION)' -i .k8s/helm/Chart.yaml
+          helm package .k8s/helm --version $CHART_VERSION --app-version $APP_VERSION
+          helm push $CHART-$CHART_VERSION.tgz oci://$REGISTRY/charts
+
+      - name: Commit Helm Values
+        id: commit_values
+        uses: stefanzweifel/git-auto-commit-action@8621497c8c39c72f3e2a999a26b4ca1b5058a842 # v5
+        with:
+          branch: ${{ needs.prepare-release.outputs.release_pr_head }}
+          commit_message: "[skip ci] chore(prod): promote image from PR #${{ steps.find_pr.outputs.pull-request-number }}"
+          file_pattern: '.k8s/helm/env-values/prod.yaml .k8s/helm/Chart.yaml'
+
+    outputs:
+      release_version: ${{ steps.release_version.outputs.release_version }}
+  finalize-release:
+    name: Finalize Release
+    environment: prod
+    needs:
+      - prepare-release
+      - prepare-and-promote
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+        with:
+          ref: ${{ github.base_ref }}
+      - name: Approve Release PR
+        id: approve_pr
+        uses: hmarr/auto-approve-action@f0939ea97e9205ef24d872e76833fa908a770363 # v4
+        with:
+          pull-request-number: ${{ needs.prepare-release.outputs.release_pr_number }}
+          github-token: ${{ secrets.PAT_BOT }}
+      - name: Merge Release PR
+        id: merge_pr
+        uses: pascalgn/automerge-action@58724c982461efbb7865b3762d7bff0d4756f57a # v0.16.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_BOT }}
+          PULL_REQUEST: ${{ needs.prepare-release.outputs.release_pr_number }}
+          MERGE_LABELS: "autorelease: pending"
+          MERGE_METHOD: squash
+          MERGE_DELETE_BRANCH: true
+          MERGE_COMMIT_MESSAGE: "Automerge PR #${{ needs.prepare-release.outputs.release_pr_number }}"
+      - name: Release-Please
+        id: release_please
+        uses: googleapis/release-please-action@7987652d64b4581673a76e33ad5e98e3dd56832f # v4.1.3
+        with:
+          skip-github-release: false
+          skip-github-pull-request: false
+      - name: Label Pull Request
+        id: label_pr
+        uses: actions/labeler@8558fd74291d67161a8a78ce36a881fa63b766a9 # v5
+        with:
+          pr-number: ${{ needs.prepare-release.outputs.release_pr_number }}
+          repo-token: ${{ secrets.PAT_BOT }}
