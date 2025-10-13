@@ -77,7 +77,8 @@ jobs:
       - name: Get Release Version
         id: release_version
         run: |
-          echo "release_version=$(jq -r '."."' .release-please-manifest.json)" >> "$GITHUB_OUTPUT""
+          version=$(jq -r 'to_entries[0].value' .release-please-manifest.json)
+          echo "release_version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Pull image from DEV and tag for PROD
         id: promote_image
