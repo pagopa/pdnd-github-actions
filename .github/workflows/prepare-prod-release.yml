@@ -183,7 +183,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    runs-on: ${{ inputs.codebuild-runner }}
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout
         id: checkout
