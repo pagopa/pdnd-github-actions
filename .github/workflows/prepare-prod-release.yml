@@ -176,7 +176,9 @@ jobs:
       release_version: ${{ steps.release_version.outputs.release_version }}
   finalize-release:
     name: Finalize and Merge Release
-    needs: [prepare-release, prepare-and-promote]
+    needs: 
+      - prepare-release
+      - promote
     environment: prod
     permissions:
       contents: write
