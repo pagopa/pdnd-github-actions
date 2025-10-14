@@ -15,7 +15,7 @@ on:
 
 jobs:
   promote:
-    name: Prepare Release
+    name: Promote Release
     environment: prod
     permissions:
       contents: write
@@ -53,7 +53,7 @@ jobs:
         with:
           ref: ${{ steps.release_info.outputs.release_pr_head }}
           fetch-depth: 0
-          
+
       - name: Find merged PR
         id: find_pr
         uses: yu-iskw/merged-pr-info-action@v1.0.2
