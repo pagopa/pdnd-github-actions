@@ -24,6 +24,12 @@ jobs:
       id-token: write
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
+      - name: Find merged PR
+        id: find_pr
+        uses: yu-iskw/merged-pr-info-action@v1.0.2
+        with:
+          github-token: ${{ secrets.PAT_BOT }}
+
       - name: Checkout
         id: checkout
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
@@ -31,12 +37,6 @@ jobs:
           ref: ${{ github.base_ref }}
           fetch-depth: 0
 
-      - name: Find merged PR
-        id: find_pr
-        uses: yu-iskw/merged-pr-info-action@v1.0.2
-        with:
-          github-token: ${{ secrets.PAT_BOT }}
-          
       - name: Release-Please
         id: release_please
         uses: googleapis/release-please-action@7987652d64b4581673a76e33ad5e98e3dd56832f # v4.1.3
