@@ -46,6 +46,14 @@ jobs:
       - name: Log Message for Missing Release
         if: steps.release_info.outputs.release_pr_head == 'null'
         run: echo "No new release was created by release-please. Skipping the build-microservice job."
+
+      - name: Checkout Release PR Branch to add changes
+        if: steps.release_info.outputs.release_pr_head != 'null'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release_info.outputs.release_pr_head }}
+          fetch-depth: 0
+          
       - name: Find merged PR
         id: find_pr
         uses: yu-iskw/merged-pr-info-action@v1.0.2
