@@ -16,12 +16,12 @@ on:
         type: string
       timeout:
         description: "Timeout helm command"
-        default: "10m"
+        default: "20m"
         required: false
         type: string
 
 jobs:
-  deploy-microservice:
+  deploy-to-prod:
     environment:
       name: prod
       #url: ${{ vars.APP_URL }}
@@ -55,7 +55,7 @@ jobs:
     name: Deploy to API Gateway
     if: ${{ inputs.openapi-folder != null && inputs.openapi-folder != '' }}
     needs:
-      - deploy-microservice
+      - deploy-to-prod
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout

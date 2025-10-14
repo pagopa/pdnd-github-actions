@@ -28,7 +28,7 @@ on:
         type: boolean
       timeout:
         description: "Timeout helm command"
-        default: "10m"
+        default: "20m"
         required: false
         type: string
 

@@ -1,4 +1,4 @@
-name: "PROD | Prepare Release on Merge"
+name: "Prepare Release for Prod"
 
 on:
   workflow_call:
