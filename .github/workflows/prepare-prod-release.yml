@@ -14,7 +14,7 @@ on:
         type: string
 
 jobs:
-  prepare-release:
+  promote:
     name: Prepare Release
     environment: prod
     permissions:
@@ -29,6 +29,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
         with:
           ref: ${{ github.base_ref }}
+          fetch-depth: 0
       - name: Release-Please
         id: release_please
         uses: googleapis/release-please-action@7987652d64b4581673a76e33ad5e98e3dd56832f # v4.1.3
@@ -41,38 +42,10 @@ jobs:
         run: |
           echo "release_pr_number=$(jq -r '.number' <<< '${{ toJSON(steps.release_please.outputs.pr) }}')" >> "$GITHUB_OUTPUT"
           echo "release_pr_head=$(jq -r '.headBranchName' <<< '${{ toJSON(steps.release_please.outputs.pr) }}')" >> "$GITHUB_OUTPUT"
-    outputs:
-      release_pr_number: ${{ steps.release_info.outputs.release_pr_number }}
-      release_pr_head: ${{ steps.release_info.outputs.release_pr_head }}
 
-  skip-build:
-    name: Skip Promotion
-    needs: 
-      - prepare-release
-    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
-    if: needs.prepare-release.outputs.release_pr_head == 'null'
-    steps:
       - name: Log Message for Missing Release
+        if: steps.release_info.outputs.release_pr_head == 'null'
         run: echo "No new release was created by release-please. Skipping the build-microservice job."
-
-  promote:
-    name: Prepare and Promote to PROD
-    needs:
-      - prepare-release
-    if: needs.prepare-release.outputs.release_pr_head != 'null'
-    environment: prod
-    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
-    permissions:
-      contents: write
-      id-token: write
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
-        with:
-          ref: ${{ needs.prepare-release.outputs.release_pr_head }}
-          fetch-depth: 0
-
       - name: Find merged PR
         id: find_pr
         uses: yu-iskw/merged-pr-info-action@v1.0.2
@@ -100,27 +73,26 @@ jobs:
           PROD_IMAGE_TAG: "${{ steps.release_version.outputs.release_version }}"
         run: |
           set -euo pipefail
-
           echo "Pulling image from DEV ECR: $SOURCE_IMAGE_TAG..."
           for i in {1..3}; do
             docker pull $DEV_ECR_URI/$REPOSITORY:$SOURCE_IMAGE_TAG && break || sleep 10
           done
-
           echo "Tagging image for PROD as $PROD_IMAGE_TAG"
           docker tag $DEV_ECR_URI/$REPOSITORY:$SOURCE_IMAGE_TAG $PROD_ECR_URI/$REPOSITORY:$PROD_IMAGE_TAG
           echo "prod_tag=$PROD_IMAGE_TAG" >> "$GITHUB_OUTPUT"
-
 
       - name: Create AWS ECR Docker Registry
         id: ecr_docker_registry
         uses: pagopa/pdnd-github-actions/create-ecr-repository@PA-2179
         with:
           repositoryName: ${{ github.event.repository.name }}
+          
       - name: Create AWS ECR Helm Repository
         id: ecr_helm_repository
         uses: pagopa/pdnd-github-actions/create-ecr-repository@PA-2179
         with:
           repositoryName: charts/${{ github.event.repository.name }}
+
       - name: Login to PROD ECR
         id: ecr_login_prod
         uses: aws-actions/amazon-ecr-login@v2
@@ -166,48 +138,28 @@ jobs:
         id: commit_values
         uses: stefanzweifel/git-auto-commit-action@8621497c8c39c72f3e2a999a26b4ca1b5058a842 # v5
         with:
-          branch: "promote/${{ steps.release_version.outputs.release_version }}"
-          ccommit_message: "[skip ci] chore(prod): promote version ${{ steps.release_version.outputs.release_version }}"
+          branch: ${{ steps.release_info.outputs.release_pr_head }}
+          commit_message: "[skip ci] chore(prod): promote version ${{ steps.release_version.outputs.release_version }}"
           file_pattern: '.k8s/helm/env-values/prod.yaml .k8s/helm/Chart.yaml'
-          create_branch: true
-          push_options: '--force'
 
-    outputs:
-      release_version: ${{ steps.release_version.outputs.release_version }}
-  finalize-release:
-    name: Finalize and Merge Release
-    needs: 
-      - prepare-release
-      - promote
-    environment: prod
-    permissions:
-      contents: write
-      pull-requests: write
-    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
-    steps:
-      - name: Checkout
-        id: checkout
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
-        with:
-          ref: ${{ github.base_ref }}
       - name: Approve Release PR
         id: approve_pr
         uses: hmarr/auto-approve-action@f0939ea97e9205ef24d872e76833fa908a770363 # v4
         with:
-          pull-request-number: ${{ needs.prepare-release.outputs.release_pr_number }}
+          pull-request-number: ${{ steps.release_info.outputs.release_pr_number }}
           github-token: ${{ secrets.PAT_BOT }}
       - name: Merge Release PR
         id: merge_pr
         uses: pascalgn/automerge-action@58724c982461efbb7865b3762d7bff0d4756f57a # v0.16.2
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_BOT }}
-          PULL_REQUEST: ${{ needs.prepare-release.outputs.release_pr_number }}
+          PULL_REQUEST: ${{ steps.release_info.outputs.release_pr_number }}
           MERGE_LABELS: "autorelease: pending"
           MERGE_METHOD: squash
           MERGE_DELETE_BRANCH: true
-          MERGE_COMMIT_MESSAGE: "Automerge PR #${{ needs.prepare-release.outputs.release_pr_number }}"
+          MERGE_COMMIT_MESSAGE: "Automerge PR #${{ steps.release_info.outputs.release_pr_number }}"
       - name: Release-Please
-        id: release_please
+        id: release_please_pr
         uses: googleapis/release-please-action@7987652d64b4581673a76e33ad5e98e3dd56832f # v4.1.3
         with:
           skip-github-release: false
@@ -216,5 +168,5 @@ jobs:
         id: label_pr
         uses: actions/labeler@8558fd74291d67161a8a78ce36a881fa63b766a9 # v5
         with:
-          pr-number: ${{ needs.prepare-release.outputs.release_pr_number }}
+          pr-number: ${{ steps.release_info.outputs.release_pr_number }}
           repo-token: ${{ secrets.PAT_BOT }}
