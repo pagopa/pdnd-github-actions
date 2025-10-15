@@ -186,6 +186,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
         with:
           ref: ${{ github.base_ref }}
+          fetch-depth: 200
       - name: Approve Release PR
         id: approve_pr
         uses: hmarr/auto-approve-action@f0939ea97e9205ef24d872e76833fa908a770363 # v4
