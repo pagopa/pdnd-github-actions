@@ -59,7 +59,7 @@ jobs:
 
       - name: Create AWS ECR Helm Repository
         id: ecr_helm_repository
-        uses: pagopa/pdnd-github-actions/create-ecr-repository@74cf3f8abfacd6814b924408a11b02f177f8f5a3
+        uses: pagopa/pdnd-github-actions/create-ecr-repository@PA-2179
         with:
           repositoryName: charts/${{ inputs.repository-name }}
 

@@ -49,7 +49,7 @@ jobs:
 
   skip-build:
     name: Skip Promotion
-    needs: 
+    needs:
       - prepare-release
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     if: needs.prepare-release.outputs.release_pr_head == 'null'
@@ -144,7 +144,6 @@ jobs:
         run: |
           yq e ".image.tag = \"${{ steps.push_image.outputs.prod_tag }}\"" -i .k8s/helm/env-values/prod.yaml
           yq e ".image.digest = \"${{ steps.push_image.outputs.prod_digest }}\"" -i .k8s/helm/env-values/prod.yaml
-          
 
       - name: Update and Push Helm Chart to PROD ECR
         id: update_push_chart
@@ -173,7 +172,7 @@ jobs:
       release_version: ${{ steps.release_version.outputs.release_version }}
   finalize-release:
     name: Finalize and Merge Release
-    needs: 
+    needs:
       - prepare-release
       - promote
     permissions:
