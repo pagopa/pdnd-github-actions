@@ -57,6 +57,12 @@ jobs:
         id: ecr_login_dev
         uses: aws-actions/amazon-ecr-login@33f92af657bba1882ab79d8621debd2f6769a0c9 #v2.0.0
 
+      - name: Create AWS ECR Docker Repository
+        id: ecr_docker_repository
+        uses: pagopa/pdnd-github-actions/create-ecr-repository@PA-2179
+        with:
+          repositoryName: ${{ inputs.repository-name }}
+
       - name: Create AWS ECR Helm Repository
         id: ecr_helm_repository
         uses: pagopa/pdnd-github-actions/create-ecr-repository@PA-2179
