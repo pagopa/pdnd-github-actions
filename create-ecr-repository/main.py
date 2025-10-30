@@ -12,42 +12,53 @@ imageTagMutability = os.getenv("INPUT_IMAGETAGMUTABILITY", default="MUTABLE")
 tags = os.getenv("INPUT_TAGS", default=[])
 tagPrefixList = os.getenv("INPUT_TAGSPREFIX", default=["v"])
 
+# Normalizzazione dei tipi
 if tags == "":
     tags = []
 
 if isinstance(tags, str):
-    tags = ast.literal_eval(tags)
+    try:
+        tags = ast.literal_eval(tags)
+    except Exception:
+        tags = []
 
 if isinstance(countNumber, str):
-    countNumber = ast.literal_eval(countNumber)
+    try:
+        countNumber = ast.literal_eval(countNumber)
+    except Exception:
+        countNumber = 30
 
 if isinstance(tagPrefixList, str):
-    tagPrefixList = ast.literal_eval(tagPrefixList)
+    try:
+        tagPrefixList = ast.literal_eval(tagPrefixList)
+    except Exception:
+        tagPrefixList = ["v"]
 
 client = boto3.client("ecr")
+
 
 def str2bool(v):
     return v.lower() in ("true", "1")
 
-def check_repository_exist(repositoryName):
+
+def check_repository_exist(repositoryName: str) -> bool:
     """Return True if ECR repo exists, False otherwise."""
     try:
-        response = client.describe_repositories(
-            repositoryNames=[repositoryName],
-        )
-        if len(response.get("repositories", [])) > 0:
-            return True
-        else:
-            return False
+        response = client.describe_repositories(repositoryNames=[repositoryName])
+        exists = len(response.get("repositories", [])) > 0
+        print(f"Repository '{repositoryName}' exists: {exists}")
+        return exists
     except client.exceptions.RepositoryNotFoundException:
+        print(f"Repository '{repositoryName}' not found.")
         return False
     except Exception as e:
-        print("Error checking repository existence: {e}")
+        print(f"Error checking repository existence for '{repositoryName}': {e}")
         print(traceback.format_exc())
         return False
 
+
 def create_ecr_repository(repositoryName, imageTagMutability, encryptionConfiguration={}, tags=[]):
-    """Crea un repository ECR o ritorna quello esistente."""
+    """Create an ECR repository or return the existing one."""
     try:
         response = client.create_repository(
             repositoryName=repositoryName,
@@ -55,16 +66,17 @@ def create_ecr_repository(repositoryName, imageTagMutability, encryptionConfigur
             imageTagMutability=imageTagMutability,
             encryptionConfiguration=encryptionConfiguration,
         )
-        print("Created repository: {response['repository']['repositoryName']}")
-        print("RepositoryUri: {response['repository']['repositoryUri']}")
+        print(f"Created repository: {response['repository']['repositoryName']}")
+        print(f"RepositoryUri: {response['repository']['repositoryUri']}")
         return response
     except client.exceptions.RepositoryAlreadyExistsException:
-        print("Repository {repositoryName} already exists, skipping creation.")
+        print(f"Repository '{repositoryName}' already exists, skipping creation.")
         return client.describe_repositories(repositoryNames=[repositoryName])
     except Exception as e:
-        print("Failed to create repository {repositoryName}: {e}")
+        print(f"Failed to create repository '{repositoryName}': {e}")
         print(traceback.format_exc())
         raise
+
 
 def lifecycle_policy(repositoryName, lifecyclePolicyText):
     """Apply lifecycle policy to ECR repo."""
@@ -73,12 +85,15 @@ def lifecycle_policy(repositoryName, lifecyclePolicyText):
             repositoryName=repositoryName,
             lifecyclePolicyText=lifecyclePolicyText,
         )
-        print("Applied lifecycle policy to {repositoryName}")
+        print(f"Applied lifecycle policy to '{repositoryName}'")
         return True
-    except Exception:
-        print("Failed to apply lifecycle policy for {repositoryName}")
+    except Exception as e:
+        print(f"Failed to apply lifecycle policy for '{repositoryName}': {e}")
         print(traceback.format_exc())
         return False
+
+
+# ------------------ MAIN EXECUTION ------------------
 
 lifecyclePolicy = {
     "rules": [
@@ -98,8 +113,10 @@ lifecyclePolicy = {
 
 encryptionConfiguration = {"encryptionType": "KMS"}
 
-print("Checking if repository '{repositoryName}' exists...")
+print(f"Checking if repository '{repositoryName}' exists...")
+
 if not check_repository_exist(repositoryName):
+    print(f"Creating repository '{repositoryName}'...")
     ecr = create_ecr_repository(
         repositoryName=repositoryName,
         imageTagMutability=imageTagMutability,
@@ -108,5 +125,5 @@ if not check_repository_exist(repositoryName):
     )
     lifecycle_policy(repositoryName, json.dumps(lifecyclePolicy))
 else:
-    print("Repository '{repositoryName}' already exists. Skipping creation.")
+    print(f"Repository '{repositoryName}' already exists. Skipping creation.")
     lifecycle_policy(repositoryName, json.dumps(lifecyclePolicy))
