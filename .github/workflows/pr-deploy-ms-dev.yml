@@ -124,7 +124,7 @@ jobs:
           CHART_VERSION: ${{ steps.chart_version.outputs.chart_version }}
         run: |
           helm package .k8s/helm --version $CHART_VERSION --app-version $CHART_VERSION
-          helm push ${CHART_NAME}-*.tgz oci://${ECR_REGISTRY}/charts
+          helm --debug push ${CHART_NAME}-*.tgz oci://${ECR_REGISTRY}/charts
 
       - name: Commit and push updated dev.yaml
         uses: stefanzweifel/git-auto-commit-action@v6
