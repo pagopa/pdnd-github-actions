@@ -67,7 +67,7 @@ jobs:
         id: ecr_helm_repository
         uses: pagopa/pdnd-github-actions/create-ecr-repository@PA-2179
         with:
-          repositoryName: charts/${{ inputs.repository-name }}
+          repositoryName: charts/${{ github.event.repository.name }}
 
       - name: Build and Push Image with PR Tag
         if: ${{ inputs.build-image == true }}
