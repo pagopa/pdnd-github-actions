@@ -92,7 +92,7 @@ jobs:
         id: image_digest
         env:
           REGISTRY: ${{ steps.ecr_login_dev.outputs.registry }}
-          REPOSITORY: ${{ github.event.repository.name }}
+          REPOSITORY: ${{ inputs.repository-name }}
           IMAGE_TAG: pr-${{ github.event.number }}
         run: |
           DIGEST=$(aws ecr describe-images \
