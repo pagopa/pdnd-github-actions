@@ -24,7 +24,7 @@ jobs:
   deploy-to-prod:
     environment:
       name: prod
-      #url: ${{ vars.APP_URL }}
+      url: ${{ vars.APP_URL }}
     name: Deploy to K8S
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:

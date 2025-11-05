@@ -39,7 +39,7 @@ jobs:
       !contains(${{ github.event.head_commit.message }}, '[skip ci]')"
     environment:
       name: dev
-      #url: ${{ vars.APP_URL }}
+      url: ${{ vars.APP_URL }}
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     permissions:
       contents: write
