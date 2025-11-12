@@ -19,6 +19,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
 
+      - name: setup-git-credentials
+        uses: de-vri-es/setup-git-credentials@5e1f18da68b7039c7f824408d170811aaec93ca8 # v2.1.2
+        with:
+          credentials: https://pdnd-pagopa-github-bot:${{ secrets.PAT_BOT }}@github.com/
+
       # Detect changes with filters and list of files
       - name: Detect changes
         id: changes
