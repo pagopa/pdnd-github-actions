@@ -43,7 +43,7 @@ jobs:
             cd apps/$project/aws
             echo "update users ..."
             chmod +x ../terraform.sh 
-            sh ./terraform.sh apply ${{ inputs.deploy-environment }} -auto-approve -target=aws_cognito_user.app_user
+            sh ../terraform.sh apply ${{ inputs.deploy-environment }} -auto-approve -target=aws_cognito_user.app_user
             cd - >/dev/null
           done
 
@@ -59,6 +59,6 @@ jobs:
             cd apps/$project/aws
             echo "update  groups ..."
             chmod +x ../terraform.sh 
-            sh ./terraform.sh apply ${{ inputs.deploy-environment }} -auto-approve -target=aws_cognito_user_group.app_groups -target=aws_cognito_user_in_group.group_members
+            sh ../terraform.sh apply ${{ inputs.deploy-environment }} -auto-approve -target=aws_cognito_user_group.app_groups -target=aws_cognito_user_in_group.group_members
             cd - >/dev/null
           done
