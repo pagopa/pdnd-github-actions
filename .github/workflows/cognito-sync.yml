@@ -1,0 +1,64 @@
+name: Cognito Sync
+
+on:
+  workflow_call:
+    inputs:
+      codebuild-runner:
+        description: "Codebuild runner name"
+        required: true
+        type: string
+      deploy-environment:
+        description: "Environment to apply changes"
+        required: true
+        type: string
+
+jobs:
+  apply-cognito:
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+
+      # Detect changes with filters and list of files
+      - name: Detect changes
+        id: changes
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
+        with:
+          filters: |
+            users:
+              - 'apps/*/aws/env/${{ inputs.deploy-environment }}/auth/users.json'
+            groups:
+              - 'apps/*/aws/env/${{ inputs.deploy-environment }}/auth/groups.json'
+          list-files: shell
+
+      # Apply Cognito Users
+      - name: Apply Cognito Users
+        if: ${{ steps.changes.outputs.users == 'true' }}
+        run: |
+          echo "Users.json changed in these files:"
+          echo "${{ steps.changes.outputs.users_files }}"
+          for file in ${{ steps.changes.outputs.users_files }}; do
+            project=$(echo "$file" | cut -d'/' -f2)
+            echo "Updating users for $project"
+            cd apps/$project/aws
+            echo "update users ..."
+            chmod +x ../terraform.sh 
+            sh ./terraform.sh apply ${{ inputs.deploy-environment }} -auto-approve -target=aws_cognito_user.app_user
+            cd - >/dev/null
+          done
+
+      # Apply Cognito Groups
+      - name: Apply Cognito Groups
+        if: ${{ steps.changes.outputs.groups == 'true' }}
+        run: |
+          echo "Groups.json changed in these files:"
+          echo "${{ steps.changes.outputs.groups_files }}"
+          for file in ${{ steps.changes.outputs.groups_files }}; do
+            project=$(echo "$file" | cut -d'/' -f2)
+            echo "Updating groups for $project"
+            cd apps/$project/aws
+            echo "update  groups ..."
+            chmod +x ../terraform.sh 
+            sh ./terraform.sh apply ${{ inputs.deploy-environment }} -auto-approve -target=aws_cognito_user_group.app_groups -target=aws_cognito_user_in_group.group_members
+            cd - >/dev/null
+          done
