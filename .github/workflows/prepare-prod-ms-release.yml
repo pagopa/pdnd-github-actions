@@ -12,7 +12,7 @@ on:
         default: ${{ github.event.repository.name }}
         required: false
         type: string
-      skip_promote:
+      skip-promote:
         description: "Set to true to skip the image promotion and Helm update steps."
         default: false
         required: false
