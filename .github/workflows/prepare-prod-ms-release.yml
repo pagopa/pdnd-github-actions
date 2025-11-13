@@ -12,6 +12,11 @@ on:
         default: ${{ github.event.repository.name }}
         required: false
         type: string
+      skip_promote:
+        description: "Set to true to skip the image promotion and Helm update steps."
+        default: false
+        required: false
+        type: boolean
 
 jobs:
   prepare-release:
@@ -61,7 +66,7 @@ jobs:
     name: Prepare and Promote to PROD
     needs:
       - prepare-release
-    if: needs.prepare-release.outputs.release_pr_head != 'null'
+    if: needs.prepare-release.outputs.release_pr_head != 'null' && inputs.skip_promote == false
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     permissions:
       contents: write
