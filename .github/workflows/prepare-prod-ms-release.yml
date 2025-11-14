@@ -66,7 +66,7 @@ jobs:
     name: Prepare and Promote to PROD
     needs:
       - prepare-release
-    if: needs.prepare-release.outputs.release_pr_head != 'null' && inputs.skip-promote == false
+    if: needs.prepare-release.outputs.release_pr_head != 'null'
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     permissions:
       contents: write
@@ -74,6 +74,7 @@ jobs:
 
     steps:
       - name: Find merged PR
+        if: inputs.skip-promote == false
         id: find_pr
         uses: yu-iskw/merged-pr-info-action@v1.0.2
         with:
@@ -85,17 +86,20 @@ jobs:
           fetch-depth: 0
 
       - name: Login to DEV ECR
+        if: inputs.skip-promote == false
         uses: aws-actions/amazon-ecr-login@v2
         with:
           registries: ${{ vars.DEV_AWS_ACCOUNT_ID }}
 
       - name: Get Release Version
+        if: inputs.skip-promote == false
         id: release_version
         run: |
           version=$(jq -r 'to_entries[0].value' .release-please-manifest.json)
           echo "release_version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Pull image from DEV and tag for PROD
+        if: inputs.skip-promote == false
         id: promote_image
         env:
           DEV_ECR_URI: "${{ vars.DEV_AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
@@ -114,12 +118,14 @@ jobs:
           echo "prod_tag=$PROD_IMAGE_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Create AWS ECR Docker Registry
+        if: inputs.skip-promote == false
         id: ecr_docker_registry
         uses: pagopa/pdnd-github-actions/create-ecr-repository@PA-2179
         with:
           repositoryName: ${{ github.event.repository.name }}
 
       - name: Create AWS ECR Helm Repository
+        if: inputs.skip-promote == false
         id: ecr_helm_repository
         uses: pagopa/pdnd-github-actions/create-ecr-repository@PA-2179
         with:
@@ -132,6 +138,7 @@ jobs:
           registries: ${{ vars.PROD_AWS_ACCOUNT_ID }}
 
       - name: Push image to PROD ECR
+        if: inputs.skip-promote == false
         id: push_image
         env:
           PROD_ECR_URI: "${{ vars.PROD_AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
@@ -146,11 +153,13 @@ jobs:
           echo "prod_digest=$digest" >> "$GITHUB_OUTPUT"
 
       - name: Update Helm values for PROD
+        if: inputs.skip-promote == false
         run: |
           yq e ".image.tag = \"${{ steps.push_image.outputs.prod_tag }}\"" -i .k8s/helm/env-values/prod.yaml
           yq e ".image.digest = \"${{ steps.push_image.outputs.prod_digest }}\"" -i .k8s/helm/env-values/prod.yaml
 
       - name: Update and Push Helm Chart to PROD ECR
+        if: inputs.skip-promote == false
         id: update_push_chart
         env:
           REPOSITORY: ${{ github.event.repository.name }}
