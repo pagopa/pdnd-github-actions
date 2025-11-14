@@ -109,7 +109,7 @@ jobs:
         env:
           DEV_ECR_URI: "${{ vars.DEV_AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
           PROD_ECR_URI: "${{ vars.PROD_AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
-          REPOSITORY: ${{ github.event.repository.name }}
+          REPOSITORY: ${{ inputs.repository-name }}
           SOURCE_IMAGE_TAG: "pr-${{ steps.find_pr.outputs.pull-request-number }}"
           PROD_IMAGE_TAG: "${{ steps.release_version.outputs.release_version }}"
         run: |
@@ -147,7 +147,7 @@ jobs:
         id: push_image
         env:
           PROD_ECR_URI: "${{ vars.PROD_AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
-          REPOSITORY: ${{ github.event.repository.name }}
+          REPOSITORY: ${{ inputs.repository-name }}
           PROD_TAG: ${{ steps.promote_image.outputs.prod_tag }}
         run: |
           set -euo pipefail
