@@ -12,6 +12,11 @@ on:
         default: ${{ github.event.repository.name }}
         required: false
         type: string
+      docker-image-to-update:
+        description: "Specify which docker imge to update if more than one"
+        default: ".image.digest"
+        required: false
+        type: string
       skip-promote:
         description: "Set to true to skip the image promotion and Helm update steps."
         default: false
@@ -155,8 +160,7 @@ jobs:
       - name: Update Helm values for PROD
         if: inputs.skip-promote == false
         run: |
-          yq e ".image.tag = \"${{ steps.push_image.outputs.prod_tag }}\"" -i .k8s/helm/env-values/prod.yaml
-          yq e ".image.digest = \"${{ steps.push_image.outputs.prod_digest }}\"" -i .k8s/helm/env-values/prod.yaml
+          yq e "${{ inputs.docker-image-to-update }} = \"${{ steps.push_image.outputs.prod_digest }}\"" -i .k8s/helm/env-values/prod.yaml
 
       - name: Update and Push Helm Chart to PROD ECR
         if: inputs.skip-promote == false
