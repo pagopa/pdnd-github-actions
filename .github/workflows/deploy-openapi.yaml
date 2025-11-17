@@ -1,0 +1,40 @@
+name: Deploy OpenApi
+on:
+  workflow_call:
+    inputs:
+      deploy-apigw-module-name:
+        description: "TF module for the API deployment on AWS API Gateway"
+        default: "module.deploy_api_gw"
+        required: false
+        type: string
+      deploy-environment:
+        required: true
+        type: string
+
+jobs:
+  deploy-openapi:
+    name: Deploy to API Gateway
+    runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+      - name: Install PyYAML
+        id: openapi_dependencies
+        run: pip install PyYAML==6.0
+      - name : Convert OpenAPI
+        id: openapi_convert
+        run: |
+          wget --header "Authorization: token ${{ secrets.PAT_BOT }}" ${{ vars.OPENAPI_INTEGRATION_SCRIPT_URL }} -P /tmp/
+          python3 /tmp/openapi_integration.py -i ${{ inputs.openapi-folder }}/openapi.yaml -o ${{ vars.AWS_OPENAPI_PATH }}
+      - name: Setup Git Credentials
+        id: openapi_git_credentials
+        uses: de-vri-es/setup-git-credentials@5e1f18da68b7039c7f824408d170811aaec93ca8 # v2.1.2
+        with:
+          credentials: https://pdnd-pagopa-github-bot:${{ secrets.PAT_BOT }}@github.com/
+      - name : Deploy OpenAPI
+        id: openapi_deploy
+        run: |
+          cd .infra/aws
+          sh ./terraform.sh apply prod -auto-approve -target=${{ inputs.deploy-apigw-module-name }}
+

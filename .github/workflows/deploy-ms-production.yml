@@ -22,7 +22,7 @@ jobs:
     steps:
       - name: Checkout
         id: checkout
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
       - name: Verify tag
         id: tag_verify
         uses: nowsprinting/check-version-format-action@de7dcbd404b253dd775262e49c9924fa834e17a2 # v4.0.3

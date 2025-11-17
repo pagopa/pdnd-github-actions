@@ -117,13 +117,13 @@ print(f"Checking if repository '{repositoryName}' exists...")
 
 if not check_repository_exist(repositoryName):
     print(f"Creating repository '{repositoryName}'...")
-    ecr = create_ecr_repository(
+    create_ecr_repository(
         repositoryName=repositoryName,
         imageTagMutability=imageTagMutability,
         encryptionConfiguration=encryptionConfiguration,
         tags=tags,
     )
-    lifecycle_policy(repositoryName, json.dumps(lifecyclePolicy))
 else:
     print(f"Repository '{repositoryName}' already exists. Skipping creation.")
-    lifecycle_policy(repositoryName, json.dumps(lifecyclePolicy))
+
+lifecycle_policy(repositoryName, json.dumps(lifecyclePolicy))

@@ -35,7 +35,7 @@ jobs:
     steps:
       - name: Checkout
         id: checkout
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           ref: ${{ github.base_ref }}
           fetch-depth: 200
@@ -81,18 +81,18 @@ jobs:
       - name: Find merged PR
         if: inputs.skip-promote == false
         id: find_pr
-        uses: yu-iskw/merged-pr-info-action@v1.0.2
+        uses: yu-iskw/merged-pr-info-action@286f6f13d310569fb9a0036d2f7731a7b33e942a # v1.0.2
         with:
           github-token: ${{ secrets.PAT_BOT }}
       - name: Checkout Code
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           ref: ${{ needs.prepare-release.outputs.release_pr_head }}
           fetch-depth: 0
 
       - name: Login to DEV ECR
         if: inputs.skip-promote == false
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076  # v2
         with:
           registries: ${{ vars.DEV_AWS_ACCOUNT_ID }}
 
@@ -200,7 +200,7 @@ jobs:
     steps:
       - name: Checkout
         id: checkout
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           ref: ${{ github.base_ref }}
           fetch-depth: 200
