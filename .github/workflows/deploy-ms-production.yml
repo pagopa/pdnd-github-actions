@@ -1,0 +1,45 @@
+name: PROD | Deploy - Microservice 
+on:
+  workflow_call:
+    inputs:
+      codebuild-runner:
+        description: "Codebuild runner name"
+        required: true
+        type: string
+      timeout:
+        description: "Timeout helm command"
+        default: "20m"
+        required: false
+        type: string
+
+jobs:
+  deploy-to-prod:
+    environment:
+      name: prod
+      url: ${{ vars.APP_URL }}
+    name: Deploy to K8S
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+      - name: Verify tag
+        id: tag_verify
+        uses: nowsprinting/check-version-format-action@de7dcbd404b253dd775262e49c9924fa834e17a2 # v4.0.3
+        with:
+          prefix: 'v'
+      - name: Get Target Namespace
+        id: deploy_namespace
+        run: |
+          echo "deploy_namespace=$(yq -r '.namespace' .k8s/helm/values.yaml)" >> "$GITHUB_OUTPUT"
+      - name: Deploy to K8S via Helm
+        id: helm_deploy
+        env:
+          HELM_RELEASE: ${{ github.event.repository.name }}
+          HELM_REPOSITORY: .k8s/helm
+          HELM_DEFAULT_VALUES: .k8s/helm/values.yaml
+          HELM_NAMESPACE: ${{ steps.deploy_namespace.outputs.deploy_namespace }}
+          HELM_ENV_VALUES: .k8s/helm/env-values/${{ vars.DEPLOY_ENVIRONMENT }}.yaml
+        run: |
+          aws eks update-kubeconfig --region eu-central-1 --name ${{ vars.EKS_CLUSTER }}
+          helm upgrade --install $HELM_RELEASE $HELM_REPOSITORY -n $HELM_NAMESPACE -f $HELM_DEFAULT_VALUES -f $HELM_ENV_VALUES --atomic --timeout ${{ inputs.timeout}}
