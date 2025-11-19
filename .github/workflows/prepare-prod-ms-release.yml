@@ -125,20 +125,20 @@ jobs:
       - name: Create AWS ECR Docker Registry
         if: inputs.skip-promote == false
         id: ecr_docker_registry
-        uses: pagopa/pdnd-github-actions/create-ecr-repository@PA-2179
+        uses: pagopa/pdnd-github-actions/create-ecr-repository@9b197047943123c2d716acd6953ce5c20e1d6807
         with:
           repositoryName: ${{ github.event.repository.name }}
 
       - name: Create AWS ECR Helm Repository
         if: inputs.skip-promote == false
         id: ecr_helm_repository
-        uses: pagopa/pdnd-github-actions/create-ecr-repository@PA-2179
+        uses: pagopa/pdnd-github-actions/create-ecr-repository@9b197047943123c2d716acd6953ce5c20e1d6807
         with:
           repositoryName: charts/${{ github.event.repository.name }}
 
       - name: Login to PROD ECR
         id: ecr_login_prod
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2
         with:
           registries: ${{ vars.PROD_AWS_ACCOUNT_ID }}
 

@@ -59,13 +59,13 @@ jobs:
 
       - name: Create AWS ECR Docker Repository
         id: ecr_docker_repository
-        uses: pagopa/pdnd-github-actions/create-ecr-repository@PA-2179
+        uses: pagopa/pdnd-github-actions/create-ecr-repository@9b197047943123c2d716acd6953ce5c20e1d6807
         with:
           repositoryName: ${{ inputs.repository-name }}
 
       - name: Create AWS ECR Helm Repository
         id: ecr_helm_repository
-        uses: pagopa/pdnd-github-actions/create-ecr-repository@PA-2179
+        uses: pagopa/pdnd-github-actions/create-ecr-repository@9b197047943123c2d716acd6953ce5c20e1d6807
         with:
           repositoryName: charts/${{ github.event.repository.name }}
 
