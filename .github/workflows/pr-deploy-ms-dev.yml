@@ -87,27 +87,13 @@ jobs:
           docker push $REGISTRY/$REPOSITORY:$IMAGE_TAG
           docker push $REGISTRY/$REPOSITORY:latest
 
-      - name: Get Image Digest
-        if: ${{ inputs.build-image == true }}
-        id: image_digest
-        env:
-          REGISTRY: ${{ steps.ecr_login_dev.outputs.registry }}
-          REPOSITORY: ${{ inputs.repository-name }}
-          IMAGE_TAG: pr-${{ github.event.number }}
-        run: |
-          DIGEST=$(aws ecr describe-images \
-            --repository-name $REPOSITORY \
-            --image-ids imageTag=$IMAGE_TAG \
-            --query 'imageDetails[0].imageDigest' \
-            --output text)
-          echo "image_digest=$DIGEST" >> $GITHUB_OUTPUT
 
       - name: Update dev.yaml digest
         if: ${{ inputs.build-image == true }}
         env:
-          IMAGE_DIGEST: ${{ steps.image_digest.outputs.image_digest }}
+          IMAGE_TAG: pr-${{ github.event.number }}
         run: |
-          yq e '${{ inputs.docker-image-to-update }} = env(IMAGE_DIGEST)' -i .k8s/helm/env-values/dev.yaml
+          yq e '${{ inputs.docker-image-to-update }} = env(IMAGE_TAG)' -i .k8s/helm/env-values/dev.yaml
 
       - name: "Determine PR Chart Version"
         id: chart_version
@@ -126,12 +112,6 @@ jobs:
           helm package .k8s/helm --version $CHART_VERSION --app-version $CHART_VERSION
           helm push ${CHART_NAME}-*.tgz oci://${ECR_REGISTRY}/charts
 
-      - name: Commit and push updated dev.yaml
-        uses: stefanzweifel/git-auto-commit-action@28e16e81777b558cc906c8750092100bbb34c5e3 # v7
-        with:
-          commit_message: "chore(dev): update image digest for PR #${{ github.event.number }}"
-          file_pattern: ".k8s/helm/env-values/dev.yaml"
-
       - name: Get Target Namespace
         id: deploy_namespace
         run: |
@@ -145,7 +125,6 @@ jobs:
           HELM_DEFAULT_VALUES: .k8s/helm/values.yaml
           HELM_NAMESPACE: ${{ steps.deploy_namespace.outputs.deploy_namespace }}
           HELM_ENV_VALUES: .k8s/helm/env-values/${{ vars.DEPLOY_ENVIRONMENT }}.yaml
-          IMAGE_DIGEST: ${{ steps.image_digest.outputs.image_digest }}
         run: |
           aws eks update-kubeconfig --region ${{ vars.AWS_REGION }} --name ${{ vars.EKS_CLUSTER }}
           helm upgrade --install $HELM_RELEASE $HELM_REPOSITORY -n $HELM_NAMESPACE -f $HELM_DEFAULT_VALUES -f $HELM_ENV_VALUES --atomic --timeout ${{ inputs.timeout}}

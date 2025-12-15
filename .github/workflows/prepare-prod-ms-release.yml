@@ -157,9 +157,10 @@ jobs:
           done
           echo "prod_digest=$digest" >> "$GITHUB_OUTPUT"
 
-      - name: Update Helm values for PROD
+      - name: Update Helm values
         if: inputs.skip-promote == false
         run: |
+          yq e "${{ inputs.docker-image-to-update }} = \"pr-${{ steps.find_pr.outputs.pull-request-number }}\"" -i .k8s/helm/env-values/dev.yaml
           yq e "${{ inputs.docker-image-to-update }} = \"${{ steps.push_image.outputs.prod_digest }}\"" -i .k8s/helm/env-values/prod.yaml
 
       - name: Update and Push Helm Chart to PROD ECR
