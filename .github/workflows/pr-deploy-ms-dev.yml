@@ -91,9 +91,9 @@ jobs:
       - name: Update dev.yaml digest
         if: ${{ inputs.build-image == true }}
         env:
-          IMAGE_TAG: pr-${{ github.event.number }}
+          IMAGE_DIGEST: ${{ steps.image_digest.outputs.image_digest }}
         run: |
-          yq e '${{ inputs.docker-image-to-update }} = env(IMAGE_TAG)' -i .k8s/helm/env-values/dev.yaml
+          yq e '${{ inputs.docker-image-to-update }} = env(IMAGE_DIGEST)' -i .k8s/helm/env-values/dev.yaml
 
       - name: "Determine PR Chart Version"
         id: chart_version
