@@ -20,7 +20,6 @@ on:
         description: 'vcluster endpoint to use for deployment'
         required: true
         type: string
-        default: ''
 jobs:
   create_runner:
     name: Create Runner
