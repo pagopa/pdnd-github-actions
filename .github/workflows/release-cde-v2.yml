@@ -20,6 +20,7 @@ on:
         description: 'vcluster endpoint to use for deployment'
         required: true
         type: string
+        default: ${{ vars.VCLUSTER_ENDPOINT_PROD }}
 jobs:
   create_runner:
     name: Create Runner
@@ -129,7 +130,6 @@ jobs:
       secrets: inherit
       with:
           config-json: ${{ toJson(matrix.target) }}
-          #vcluster-endpoint:  "${{ vars.VCLUSTER_ENDPOINT_PROD }}"
           vcluster-endpoint:  "${{ inputs.vcluster-endpoint-url }}"
   deploy-spark:
     if:  inputs.deploy-type  == 'spark' && !inputs.skip-deploy
