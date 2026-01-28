@@ -2,6 +2,10 @@ name: Release
 on:
   workflow_call:
     inputs:
+      codebuild-runner:
+        description: "Codebuild runner name"
+        required: true
+        type: string
       native:
         description: 'Native Build'
         default: false
@@ -17,31 +21,8 @@ on:
         description: "Release Tag name"
         value: ${{ jobs.release.outputs.release_tag }}
 jobs:
-  create_runner:
-    name: Create runner
-    runs-on: ubuntu-24.04
-    # These permissions are needed to interact with GitHub's OIDC Token endpoint.
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Create Runner
-        id: create_runner
-        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@fb2dd07fda1de2db4868edd8d77f3eb2caff334c
-        with:
-          name: ${{ github.event.repository.name }}
-          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
-          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
-          namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
-          image: ${{ vars.RUNNER_DOCKER_IMAGE}}
-          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
-          docker_enabled: true
-    outputs:
-      runner_label: ${{ steps.create_runner.outputs.runner_label }}
   release:
-    runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
-    needs:
-      - create_runner
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     env:
       GITHUB_TOKEN: ${{ secrets.PAT_BOT }}
       BOT_USERNAME: pdnd-pagopa-github-bot
@@ -66,13 +47,13 @@ jobs:
         uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f # v5.1.1
         with:
           python-version: '3.9'
-          cache: 'pip'
-      - name: Cache Maven packages
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2
-          restore-keys: ${{ runner.os }}-m2    
+      #    cache: 'pip'
+      #- name: Cache Maven packages
+      #  uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+      #  with:
+      #    path: ~/.m2
+      #    key: ${{ runner.os }}-m2
+      #    restore-keys: ${{ runner.os }}-m2    
       - name: Semantic Release
         uses: cycjimmy/semantic-release-action@b1b432f13acb7768e0c8efdec416d363a57546f2 # v4.1.1
         id: semantic
@@ -114,28 +95,10 @@ jobs:
           git commit -m "[ci skip] setup snapshot version for next release"
       - name: Push
         if: steps.semantic.outputs.new_release_published == 'true'
-        uses: pagopa/pdnd-github-actions/push-bot@e247590a5781e6a43b997c777515e65d2a13cb2a # v1.0.1
+        uses: pagopa/pdnd-github-actions/push-bot@codebuild_runner # update-me
         with:
           token: ${{ secrets.PAT_BOT }}
           branch_name: ${{ github.ref }}
           bot_name: ${{ env.BOT_USERNAME }}     
     outputs:
       release_tag: ${{ steps.semantic.outputs.new_release_version }}
-  destroy_runner:
-    runs-on: ubuntu-24.04
-    permissions:
-      id-token: write
-      contents: read
-    if: ${{ always() && !contains(needs.create_runner.result, 'failure') }}
-    needs:
-      - create_runner
-      - release
-    steps:
-      - name: Destroy Runner
-        id: destroy_runner
-        uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@fb2dd07fda1de2db4868edd8d77f3eb2caff334c
-        with:
-          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
-          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
-          runner_label: ${{ needs.create_runner.outputs.runner_label }}
-          namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }}

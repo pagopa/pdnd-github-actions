@@ -2,6 +2,10 @@ name: Microservice - Release
 on:
   workflow_call:
     inputs:
+      codebuild-runner:
+        description: "Codebuild runner name"
+        required: true
+        type: string
       docker-image-to-update:
         description: "Specify which docker imge to update if more than one"
         default: ".image.digest"
@@ -23,36 +27,14 @@ on:
         type: boolean
 
 jobs:
-  create-runner:
-    name: Create Runner
-    runs-on: ubuntu-24.04
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Create Runner
-        id: create_runner
-        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
-        with:
-          name: ${{ github.event.repository.name }}
-          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
-          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
-          namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
-          image: ${{ vars.RUNNER_DOCKER_IMAGE }}
-          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}
-          docker_enabled: true
-    outputs:
-      runner_label: ${{ steps.create_runner.outputs.runner_label }}
   prepare-release:
     name: Prepare Release
-    needs:
-      - create-runner
     permissions:
       contents: write
       issues: write
       pull-requests: write
       id-token: write
-    runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
+    runs-on: runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout
         id: checkout
@@ -79,7 +61,6 @@ jobs:
   skip-build:
     name: Skip Build
     needs: 
-      - create-runner
       - prepare-release
     runs-on: ubuntu-24.04
     if: needs.prepare-release.outputs.release_pr_head == 'null'
@@ -89,10 +70,9 @@ jobs:
   build-microservice:
     name: Build Microservice
     needs:
-      - create-runner
       - prepare-release
     if: needs.prepare-release.outputs.release_pr_head != 'null'
-    runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout
         id: checkout
@@ -181,7 +161,6 @@ jobs:
   finalize-release:
     name: Finalize Release
     needs:
-      - create-runner
       - prepare-release
       - build-microservice
     permissions:
@@ -189,7 +168,7 @@ jobs:
       issues: write
       pull-requests: write
       id-token: write
-    runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout
         id: checkout
@@ -224,25 +203,3 @@ jobs:
         with:
           pr-number: ${{ needs.prepare-release.outputs.release_pr_number }}
           repo-token: ${{ secrets.PAT_BOT }}
-  destroy-runner:
-    name: Destroy Runner
-    runs-on: ubuntu-24.04
-    needs:
-      - create-runner
-      - prepare-release
-      - build-microservice
-      - finalize-release
-      - skip-build
-    permissions:
-      id-token: write
-      contents: read
-    if: ${{ always() && !contains(needs.create-runner.result, 'failure') && !contains(needs.create-runner.result, 'skipped')}}
-    steps:
-      - name: Destroy Runner
-        id: destroy_runner
-        uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
-        with:
-          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
-          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
-          runner_label: ${{ needs.create-runner.outputs.runner_label }}
-          namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }}

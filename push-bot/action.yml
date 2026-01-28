@@ -1,5 +1,5 @@
 name: "Push to a protected branch"
-description: Push into protected branches"
+description: "Push into protected branches"
 branding:
   icon: "git-merge"
   color: purple
@@ -15,9 +15,27 @@ inputs:
     required: true
     description: 'The name of the user to push with'
 runs:
-  using: 'docker'
-  image: 'Dockerfile'
-  args:
-    - ${{ inputs.token }}
-    - ${{ inputs.branch_name }}
-    - ${{ inputs.bot_name }}
+  using: "composite"
+  steps:
+    - name: Run Push Script
+      shell: bash
+      run: |
+        # Pulizia nome branch (rimuove refs/heads/ se presente)
+        CLEAN_BRANCH=$(echo "${{ inputs.branch_name }}" | sed 's|refs/heads/||')
+        
+        # Configurazione Git
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        git config user.name "${{ inputs.bot_name }}"
+        git config user.email "${{ inputs.bot_name }}@users.noreply.github.com"
+        
+        # Update URL con token per autenticazione
+        REPO_REF="https://${{ inputs.bot_name }}:${{ inputs.token }}@github.com/${GITHUB_REPOSITORY}.git"
+        git remote set-url origin "${REPO_REF}"
+        
+        # Operazioni Git
+        git add -A
+        timestamp=$(date -u)
+        git commit -m "Bot published ${GITHUB_SHA} at ${timestamp}" || true
+        
+        git pull --rebase origin "$CLEAN_BRANCH"
+        git push origin "HEAD:$CLEAN_BRANCH"
