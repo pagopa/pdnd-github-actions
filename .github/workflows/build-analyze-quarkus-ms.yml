@@ -39,14 +39,20 @@ jobs:
       #     github_token: ${{ secrets.GITHUB_TOKEN }}
       #     reporter: github-pr-review
       #     level: warning
+      - name: Testcontainers CodeBuild Fix
+        run: |
+          DOCKER_HOST_IP=$(ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+')
+          echo "DOCKER_HOST_IP=$DOCKER_HOST_IP" >> $GITHUB_ENV
+          echo "tc.host=$DOCKER_HOST_IP" > ~/.testcontainers.properties
+          echo "Testcontainers configured to use host: $DOCKER_HOST_IP"
       - name: Build and UT
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mvn clean verify -B \
-            -Dquarkus.devservices.enabled=false \
-            -Dquarkus.liquibase-mongodb.enabled=false \
+          # Passiamo l'IP dell'host a Quarkus per i servizi MongoDB
+          mvn clean package -B \
+            -Dquarkus.mongodb.hosts=${{ env.DOCKER_HOST_IP }}:27017 \
             -DskipITs=true
       - name: Analyze and IT
         env:
