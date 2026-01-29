@@ -1,11 +1,11 @@
 name: Build Analyze
 on:
   workflow_call:
-    codebuild-runner:
+    inputs:
+      codebuild-runner:
         description: "Codebuild runner name"
         required: true
         type: string
-    inputs:
       native:
         description: 'Native Build'
         default: 'false'
