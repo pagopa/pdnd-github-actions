@@ -27,12 +27,12 @@ jobs:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
-      - name: Cache Maven packages
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2
-          restore-keys: ${{ runner.os }}-m2
+      #- name: Cache Maven packages
+      #  uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+      #  with:
+      #    path: ~/.m2
+      #    key: ${{ runner.os }}-m2
+      #    restore-keys: ${{ runner.os }}-m2
       # - name: Java checkstyle
       #   uses: dbelyaev/action-checkstyle@v0.7.5
       #   with:
@@ -43,7 +43,11 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: QUARKUS_PROFILE=test mvn package -DskipITs=true
+        run: |
+          mvn clean verify -B \
+            -Dquarkus.devservices.enabled=false \
+            -Dquarkus.liquibase-mongodb.enabled=false \
+            -DskipITs=true
       - name: Analyze and IT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
