@@ -2,39 +2,18 @@ name: Deploy
 on:
   workflow_call:
     inputs:
+      runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
       ref_name:
         description: 'Deploy ref name'
         default: ${{ github.ref }}
         required: false
         type: string
 jobs:
-  create_runner:
     if: startsWith(github.ref, 'refs/tags/v')
-    name: Create runner
-    runs-on: ubuntu-24.04
-    # These permissions are needed to interact with GitHub's OIDC Token endpoint.
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Create Runner
-        id: create_runner
-        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@fb2dd07fda1de2db4868edd8d77f3eb2caff334c
-        with:
-          name: ${{ github.event.repository.name }}
-          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
-          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
-          namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
-          image: ${{ vars.RUNNER_DOCKER_IMAGE}}
-          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
-          docker_enabled: true
-    outputs:
-      runner_label: ${{ steps.create_runner.outputs.runner_label }}
-  deploy:
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
-    needs:
-      - create_runner
+    codebuild-runner:
+        description: "Codebuild runner name"
+        required: true
+        type: string
     steps:
       - name: Checkout
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
@@ -108,21 +87,3 @@ jobs:
           cd .infra/aws
           ./terraform.sh plan prod -target=module.deploy_api_gw
           ./terraform.sh apply prod -auto-approve -target=module.deploy_api_gw
-  destroy_runner:
-    runs-on: ubuntu-24.04
-    permissions:
-      id-token: write
-      contents: read
-    if: ${{ always() && !contains(needs.create_runner.result, 'failure') && startsWith(github.ref, 'refs/tags/v')}}
-    needs:
-      - create_runner
-      - deploy
-    steps:
-      - name: Destroy Runner
-        id: destroy_runner
-        uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@fb2dd07fda1de2db4868edd8d77f3eb2caff334c
-        with:
-          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
-          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
-          runner_label: ${{ needs.create_runner.outputs.runner_label }}
-          namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }}
