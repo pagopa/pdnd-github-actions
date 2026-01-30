@@ -100,7 +100,7 @@ jobs:
           git commit -m "[ci skip] setup snapshot version for next release"
       - name: Push
         if: steps.semantic.outputs.new_release_published == 'true'
-        uses: pagopa/pdnd-github-actions/push-bot@codebuild_runner # update-me
+        uses: pagopa/pdnd-github-actions/push-bot@ca43d91392fa69cc3d16c10ef1280bb208c9f6a6
         with:
           token: ${{ secrets.PAT_BOT }}
           branch_name: ${{ github.ref }}
