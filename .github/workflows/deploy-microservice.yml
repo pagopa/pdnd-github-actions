@@ -53,9 +53,8 @@ jobs:
     name: Deploy to API Gateway
     if: ${{ inputs.openapi-folder != null && inputs.openapi-folder != '' }}
     needs:
-      - create-runner
       - deploy-microservice
-    runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout
         id: checkout

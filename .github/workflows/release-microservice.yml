@@ -34,7 +34,7 @@ jobs:
       issues: write
       pull-requests: write
       id-token: write
-    runs-on: runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Checkout
         id: checkout
