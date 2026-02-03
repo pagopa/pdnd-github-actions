@@ -2,6 +2,10 @@ name: UnDeploy CDE Airflow Job
 on:
   workflow_call:
     inputs:
+      codebuild-runner:
+        description: "Codebuild runner name"
+        required: true
+        type: string
       config-json:
         description: 'config to undeploy'
         type: string
@@ -9,31 +13,8 @@ on:
         description: 'the vcluster to deploy on'
         type: string
 jobs:
-  create_runner:
-    name: Create Runner
-    runs-on: ubuntu-24.04
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Create Runner
-        id: create_runner
-        if: ${{ !env.ACT }}
-        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
-        with:
-          name: ${{ github.event.repository.name }}
-          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
-          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
-          namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
-          image: ${{ vars.RUNNER_DOCKER_IMAGE}}
-          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
-          docker_enabled: true
-    outputs:
-      runner_label: ${{ steps.create_runner.outputs.runner_label }}
   parse-config:
-    runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
-    needs:
-      - create_runner
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Hack container for local development
         if: ${{ env.ACT }}
@@ -44,7 +25,7 @@ jobs:
         uses: aws-actions/aws-secretsmanager-get-secrets@4e95aaf6ba8028772f5384971d4fedccfaab8621 #v2.0.6
         with:
           secret-ids: |
-             CLOUDERA_BOT_USERS,${{ vars.CLOUDERA_BOT_USERS_SECRET_NAME }} 
+            CLOUDERA_BOT_USERS,${{ vars.CLOUDERA_BOT_USERS_SECRET_NAME }} 
       - name: Build commands
         id: parse_json
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
@@ -92,7 +73,8 @@ jobs:
     outputs:
       parsed_config: ${{ steps.parse_json.outputs.result }}
   execute-commands:
-    runs-on: self-hosted
+    #runs-on: self-hosted anchne qui capire perchè era solo self-hosted
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     strategy:
       max-parallel: 1
       matrix:
@@ -123,23 +105,3 @@ jobs:
           ls -lart
           echo executing command : '${{ matrix.command }}'
           eval "${{ matrix.command }}"
-  destroy_runner:
-    name: Destroy Runner
-    runs-on: ubuntu-24.04
-    permissions:
-        id-token: write
-        contents: read
-    if: ${{ always() && !contains(needs.create_runner.result, 'failure')}}
-    needs:
-        - create_runner
-        - execute-commands
-    steps:
-        - name: Destroy Runner
-          id: destroy_runner
-          if: ${{ !env.ACT }}
-          uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
-          with:
-              cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
-              aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
-              runner_label: ${{ needs.create_runner.outputs.runner_label }}
-              namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }} 

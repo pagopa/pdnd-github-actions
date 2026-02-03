@@ -2,6 +2,10 @@ name: Release Jobs
 on:
   workflow_call:
     inputs:
+      codebuild-runner:
+        description: "Codebuild runner name"
+        required: true
+        type: string
       deploy-type:
         description: 'Deploy on spark or airflow'
         required: true
@@ -22,31 +26,8 @@ on:
         type: string
         default: ${{ vars.VCLUSTER_ENDPOINT_PROD }}
 jobs:
-  create_runner:
-    name: Create Runner
-    runs-on: ubuntu-24.04
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Create Runner
-        id: create_runner
-        if: ${{ !env.ACT }}
-        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
-        with:
-          name: ${{ github.event.repository.name }}
-          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
-          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
-          namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
-          image: ${{ vars.RUNNER_DOCKER_IMAGE}}
-          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
-          docker_enabled: true
-    outputs:
-      runner_label: ${{ steps.create_runner.outputs.runner_label }}
   prepare-release:
-    runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
-    needs:
-      - create_runner
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Hack container for local development
         if: ${{ env.ACT }}
@@ -149,9 +130,8 @@ jobs:
         vcluster-endpoint:  "${{ inputs.vcluster-endpoint-url }}"
   release:
     name: Release git tag
-    runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     needs:
-      - create_runner
       - prepare-release
       - deploy-airflow
       - deploy-spark
@@ -207,28 +187,3 @@ jobs:
           notify_when: "success,failure,warnings"
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-  destroy_runner:
-    name: Destroy Runner
-    runs-on: ubuntu-24.04
-    permissions:
-        id-token: write
-        contents: read
-    if: ${{ always() && !contains(needs.create_runner.result, 'failure')}}
-    needs:
-        - create_runner
-        - release
-    steps:
-        - name: Destroy Runner
-          id: destroy_runner
-          if: ${{ !env.ACT }}
-          uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
-          with:
-              cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
-              aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
-              runner_label: ${{ needs.create_runner.outputs.runner_label }}
-              namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }}       
-            
-
-            
-
-
