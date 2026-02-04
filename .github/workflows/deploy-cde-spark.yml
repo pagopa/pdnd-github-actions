@@ -153,6 +153,7 @@ jobs:
       options: 
         --privileged
         --user root
+        --network host
     env:
       POETRY_HTTP_BASIC_ARTIFACT_PASSWORD: ${{ needs.login-poetry.outputs.poetry_token }}
     steps:
