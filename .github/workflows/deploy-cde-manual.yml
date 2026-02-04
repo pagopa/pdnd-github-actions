@@ -50,6 +50,7 @@ jobs:
       uses: ./.github/workflows/deploy-cde-airflow.yml
       secrets: inherit
       with:
+          codebuild-runner: ${{ inputs.codebuild-runner }}
           config-json: ${{ toJson(needs.prepare_deploy.outputs.deploy_configs) }}
           vcluster-endpoint:  ${{ vars[format('VCLUSTER_ENDPOINT_{0}', github.event.inputs.environment)] }}
   deploy-spark:
@@ -59,5 +60,6 @@ jobs:
     uses: ./.github/workflows/deploy-cde-spark.yml
     secrets: inherit
     with:
+        codebuild-runner: ${{ inputs.codebuild-runner }}
         config-json: ${{ toJson(needs.prepare_deploy.outputs.deploy_configs) }}
         vcluster-endpoint:  ${{ vars[format('VCLUSTER_ENDPOINT_{0}', github.event.inputs.environment)] }}
