@@ -2,22 +2,22 @@ name: Deploy Job manually on env
 on:
   workflow_call:
     inputs:
-        codebuild-runner:
-          description: "Codebuild runner name"
-          required: true
-          type: string
-        environment:
-          description: 'Choose the environment'
-          required: true
-          type: string
-        config:
-          description: 'Choose the config to deploy'
-          required: true
-          type: string
-        deploy-type:
-          description: 'Deploy on spark or airflow'
-          required: true
-          type: string
+      codebuild-runner:
+        description: "Codebuild runner name"
+        required: true
+        type: string
+      environment:
+        description: 'Choose the environment'
+        required: true
+        type: string
+      config:
+        description: 'Choose the config to deploy'
+        required: true
+        type: string
+      deploy-type:
+        description: 'Deploy on spark or airflow'
+        required: true
+        type: string
 jobs:
   prepare_deploy:
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
