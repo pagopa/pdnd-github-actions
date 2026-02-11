@@ -144,7 +144,7 @@ jobs:
     needs:
       - login-poetry
       - parse-config
-    runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     container:
       image: ${{ vars.CDE_RUNTIME_IMAGE }}
       credentials:
