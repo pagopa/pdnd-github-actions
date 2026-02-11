@@ -140,43 +140,38 @@ jobs:
       docker_password: ${{ steps.login-ecr.outputs.ECR_PASSWORD }}
   build-venv:
     name: Build Env
-    if: ${{ fromJson(needs.parse-config.outputs.parsed_config).venv }}
+    if: ${{  fromJson(needs.parse-config.outputs.parsed_config).venv }}
     needs:
       - login-poetry
       - parse-config
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+    container:
+      image: ${{ vars.CDE_RUNTIME_IMAGE }}
+      credentials:
+        username: AWS
+        password: ${{ needs.login-poetry.outputs.docker_password }}
+      options: 
+        --privileged
+        --user root
     env:
       POETRY_HTTP_BASIC_ARTIFACT_PASSWORD: ${{ needs.login-poetry.outputs.poetry_token }}
-      WORK_DIR: ${{ fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
-      VENV_FILENAME: ${{ fromJson(needs.parse-config.outputs.parsed_config).venv.file-name }}
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
         with:
           fetch-depth: 0
-      - name: Login to ECR
+      - name: Build Project
+        working-directory: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
+        continue-on-error: false
         run: |
-          echo "${{ needs.login-poetry.outputs.docker_password }}" | docker login --username AWS --password-stdin 688071769384.dkr.ecr.eu-central-1.amazonaws.com
-      - name: Build Project with Docker
-        run: |
-          HOST_WS="${{ github.workspace }}"
-          docker run --rm \
-            --network host \
-            --privileged \
-            --user root \
-            -v "$HOST_WS:$HOST_WS" \
-            -w "$HOST_WS/${{ env.WORK_DIR }}" \
-            -e POETRY_HTTP_BASIC_ARTIFACT_PASSWORD="${{ env.POETRY_HTTP_BASIC_ARTIFACT_PASSWORD }}" \
-            ${{ vars.CDE_RUNTIME_IMAGE }} \
-            /bin/bash -c "set -e && \
-              poetry config virtualenvs.in-project true && \
-              poetry config virtualenvs.create true && \
-              poetry install --without test,dev --no-root && \
-              poetry build -f wheel -n && \
-              poetry run pip install --no-deps dist/*.whl && \
-              poetry run pip install venv-pack2 && \
-              poetry run venv-pack -o ${{ env.VENV_FILENAME }}.tar.gz"
+          poetry config virtualenvs.in-project true
+          poetry config virtualenvs.create true
+          poetry install --without test,dev --no-root
+          poetry build -f wheel -n 
+          poetry run pip install --no-deps dist/*.whl
+          poetry run pip install venv-pack2
+          poetry run venv-pack -o ${{  fromJson(needs.parse-config.outputs.parsed_config).venv.file-name }}.tar.gz
       - name: Upload Build Artifact
-        uses: actions/upload-artifact@604373da6381bf24206979c74d06a550515601b9 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: build-artifact
           path: ${{ fromJson(needs.parse-config.outputs.parsed_config).base_dir }}/${{ fromJson(needs.parse-config.outputs.parsed_config).venv.file-name }}.tar.gz
@@ -199,7 +194,7 @@ jobs:
         run: echo /runnertmp/externals/node16/bin/ >> $GITHUB_PATH
       - name: Checkout the repository
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
-      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         if: ${{  fromJson(needs.parse-config.outputs.parsed_config).venv }}
         with:
           name: build-artifact
