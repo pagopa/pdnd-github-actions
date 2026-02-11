@@ -205,7 +205,7 @@ jobs:
           name: build-artifact
           path: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}  
       - name: Setup CDE CLI
-        uses: pagopa/pdnd-github-actions/setup-cde-cli@b6de1cd44031f1b3c8546864b55b713f4d5fdd28
+        uses: pagopa/pdnd-github-actions/setup-cde-cli@codebuild-runner_fase-2
         with:
             version: "1.20.3"
             access_key_id: ${{ secrets.GH_CDP_ACCESS_KEY_ID }}
