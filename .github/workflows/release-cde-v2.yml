@@ -110,6 +110,7 @@ jobs:
       uses: ./.github/workflows/deploy-cde-airflow.yml
       secrets: inherit
       with:
+          codebuild-runner: ${{ inputs.codebuild-runner }}
           config-json: ${{ toJson(matrix.target) }}
           vcluster-endpoint:  "${{ inputs.vcluster-endpoint-url }}"
   deploy-spark:
@@ -125,6 +126,7 @@ jobs:
     uses: ./.github/workflows/deploy-cde-spark.yml
     secrets: inherit
     with:
+        codebuild-runner: ${{ inputs.codebuild-runner }}
         config-json: ${{ toJson(matrix.target) }}
         #vcluster-endpoint:  "${{ vars.VCLUSTER_ENDPOINT_PROD }}"
         vcluster-endpoint:  "${{ inputs.vcluster-endpoint-url }}"
