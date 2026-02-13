@@ -142,7 +142,6 @@ jobs:
     outputs:
       parsed_config: ${{ steps.parse_json.outputs.result }}
   execute-commands:
-    #runs-on: self-hosted   #capire perchè questa era solo cosi.
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     if: ${{ !failure() && !cancelled() }}
     strategy:

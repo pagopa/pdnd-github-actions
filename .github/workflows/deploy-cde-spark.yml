@@ -178,7 +178,6 @@ jobs:
           overwrite: true
   execute-commands:
     name: Execute commands
-    #runs-on: self-hosted anche qui capire perchè era solo self-hosted
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     if: ${{ !failure() && !cancelled() }}
     strategy:

@@ -22,7 +22,7 @@ on:
         default: prod
       vcluster-endpoint-url:
         description: 'vcluster endpoint to use for deployment'
-        required: true
+        required: false
         type: string
         default: ${{ vars.VCLUSTER_ENDPOINT_PROD }}
 jobs:
