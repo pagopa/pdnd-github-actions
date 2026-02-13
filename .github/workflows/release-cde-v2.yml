@@ -128,7 +128,6 @@ jobs:
     with:
         codebuild-runner: ${{ inputs.codebuild-runner }}
         config-json: ${{ toJson(matrix.target) }}
-        #vcluster-endpoint:  "${{ vars.VCLUSTER_ENDPOINT_PROD }}"
         vcluster-endpoint:  "${{ inputs.vcluster-endpoint-url }}"
   release:
     name: Release git tag
