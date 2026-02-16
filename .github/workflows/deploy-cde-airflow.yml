@@ -173,5 +173,13 @@ jobs:
       - name: Run commands
         working-directory: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
         run: |
-          echo executing command : '${{ matrix.command }}'
-          eval "${{ matrix.command }}"
+          cat << 'EOF' > run_cmd.sh
+          ${{ matrix.command }}
+          EOF
+          
+          chmod +x run_cmd.sh
+          echo "executing command script:"
+          cat run_cmd.sh
+          echo "-------------------------"
+          
+          ./run_cmd.sh
