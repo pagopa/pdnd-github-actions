@@ -108,7 +108,7 @@ jobs:
                 fi
             `;
 
-            command_sequence.push(job_delete_cmd)
+            command_sequence.push(job_delete_and_wait_cmd)
             const job_create_cmd = `
                 cde job create --type="airflow" ${opts}
             `;
