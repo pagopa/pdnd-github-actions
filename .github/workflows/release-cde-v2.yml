@@ -98,7 +98,7 @@ jobs:
     outputs:
         configs: ${{ steps.compute-release.outputs.result }}
   deploy-airflow:
-      if:  inputs.deploy-type  == 'airflow' && !inputs.skip-deploy
+      if: ${{ inputs.deploy-type == 'airflow' && inputs.skip-deploy != true }}
       needs:
         - prepare-release
       strategy:
@@ -114,7 +114,7 @@ jobs:
           config-json: ${{ toJson(matrix.target) }}
           vcluster-endpoint:  "${{ inputs.vcluster-endpoint-url }}"
   deploy-spark:
-    if:  inputs.deploy-type  == 'spark' && !inputs.skip-deploy
+    if: ${{ inputs.deploy-type == 'spark' && inputs.skip-deploy != true }}
     needs:
       - prepare-release
     strategy:
@@ -136,7 +136,7 @@ jobs:
       - prepare-release
       - deploy-airflow
       - deploy-spark
-    if: always() && ${{ !failure() && !cancelled() }}
+    if: ${{ always() && !failure() && !cancelled() }}
     strategy:
       max-parallel: 1
       fail-fast: false
