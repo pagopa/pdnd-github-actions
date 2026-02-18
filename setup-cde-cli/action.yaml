@@ -27,6 +27,7 @@ runs:
         echo "::add-mask::${{ inputs.access_key_id }}"
         echo "::add-mask::${{ inputs.private_key }}"
       shell: bash
+
     - name: Set Up CDE CLI
       run: |
         aws codeartifact get-package-version-asset \
@@ -39,21 +40,31 @@ runs:
             --asset cde cde \
             --no-cli-pager
         chmod +x ./cde
-        sudo mv ./cde /usr/local/bin/cde
-      shell: bash  
+        if [ "$(id -u)" -eq 0 ]; then
+            mv ./cde /usr/local/bin/cde
+        else
+            sudo mv ./cde /usr/local/bin/cde
+        fi
+      shell: bash
+
     - name: Credentials Config
-      uses: DamianReeves/write-file-action@6929a9a6d1807689191dcc8bbe62b54d70a32b42 # v1.3
-      with:
-        path: /home/runner/.cdp/credentials
-        contents: |
-          [default]
-          cdp_access_key_id = ${{ inputs.access_key_id }}
-          cdp_private_key = ${{ inputs.private_key }}
-        write-mode: overwrite 
+      run: |
+        mkdir -p "$HOME/.cdp"
+        
+        cat <<EOF > "$HOME/.cdp/credentials"
+        [default]
+        cdp_access_key_id = ${{ inputs.access_key_id }}
+        cdp_private_key = ${{ inputs.private_key }}
+        EOF
+        
+        chmod 600 "$HOME/.cdp/credentials"
+        
+        echo "CDP Credentials configured in $HOME/.cdp/credentials"
+      shell: bash
+
     - name: Profile Config
-      uses: DamianReeves/write-file-action@6929a9a6d1807689191dcc8bbe62b54d70a32b42 # v1.3
-      with:
-        path: /home/runner/.cde/config.yaml
-        contents: |
-          vcluster-endpoint: ${{ inputs.vcluster_endpoint }}
-        write-mode: overwrite 
+      run: |
+        mkdir -p "$HOME/.cde"
+        echo "vcluster-endpoint: ${{ inputs.vcluster_endpoint }}" > "$HOME/.cde/config.yaml"
+        echo "CDE Profile configured in $HOME/.cde/config.yaml"
+      shell: bash

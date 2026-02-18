@@ -1,19 +1,20 @@
 name: Deploy
 on:
   workflow_call:
-    inputs:
-      runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+    inputs:  
+      codebuild-runner:
+        description: "Codebuild runner name"
+        required: true
+        type: string
       ref_name:
         description: 'Deploy ref name'
         default: ${{ github.ref }}
         required: false
         type: string
 jobs:
+  deploy:
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     if: startsWith(github.ref, 'refs/tags/v')
-    codebuild-runner:
-        description: "Codebuild runner name"
-        required: true
-        type: string
     steps:
       - name: Checkout
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4

@@ -18,16 +18,24 @@ runs:
         echo "::add-mask::${{ inputs.access_key_id }}"
         echo "::add-mask::${{ inputs.private_key }}"
       shell: bash
+
     - name: Install CDP CLI
       run: |
         pip install cdpcli==${{ inputs.version }}
-      shell: bash  
+      shell: bash
+
     - name: Configuration
-      uses: DamianReeves/write-file-action@6929a9a6d1807689191dcc8bbe62b54d70a32b42 # v1.3
-      with:
-        path: /home/runner/.cdp/credentials
-        contents: |
-          [default]
-          cdp_access_key_id = ${{ inputs.access_key_id }}
-          cdp_private_key = ${{ inputs.private_key }}
-        write-mode: overwrite   
+      run: |
+        mkdir -p "$HOME/.cdp"
+
+        # Scrive il file credentials
+        cat <<EOF > "$HOME/.cdp/credentials"
+        [default]
+        cdp_access_key_id = ${{ inputs.access_key_id }}
+        cdp_private_key = ${{ inputs.private_key }}
+        EOF
+
+        chmod 600 "$HOME/.cdp/credentials"
+
+        echo "CDP CLI configured successfully in $HOME/.cdp/credentials"
+      shell: bash

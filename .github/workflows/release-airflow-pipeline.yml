@@ -2,50 +2,29 @@ name: Release Airflow Pipeline
 on:
   workflow_call:
     inputs:
-        airflow_volume_claim:
-          required: false
-          default: airflow-dag-volume
-          type: string
-        airflow_volume_mount_path:
-          required: false
-          default: /mnt/efs
-          type: string
-        airflow_env:
-          required: true
-          type: string
-        run_docker_build:
-          required: false
-          default: true
-          type: boolean
+      codebuild-runner:
+        description: "Codebuild runner name"
+        required: true
+        type: string
+      airflow_volume_claim:
+        required: false
+        default: airflow-dag-volume
+        type: string
+      airflow_volume_mount_path:
+        required: false
+        default: /mnt/efs
+        type: string
+      airflow_env:
+        required: true
+        type: string
+      run_docker_build:
+        required: false
+        default: true
+        type: boolean
 jobs:
-    create_runner:
-      name: Create runner
-      runs-on: ubuntu-24.04
-      if: github.ref_type == 'tag'
-      # These permissions are needed to interact with GitHub's OIDC Token endpoint.
-      permissions:
-        id-token: write
-        contents: read
-      steps:
-        - name: Create Runner
-          id: create_runner
-          uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
-          with:
-            name: ${{ github.event.repository.name }}
-            cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
-            aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
-            namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
-            image: ${{ vars.RUNNER_DOCKER_IMAGE}}
-            service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
-            docker_enabled: true
-            volume_claim: ${{ inputs.airflow_volume_claim }}
-            volume_mount_path: ${{ inputs.airflow_volume_mount_path }}
-      outputs:
-        runner_label: ${{ steps.create_runner.outputs.runner_label }}
     release:
       name: Release
-      runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
-      needs: create_runner
+      runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
       steps:
         - uses: nowsprinting/check-version-format-action@de7dcbd404b253dd775262e49c9924fa834e17a2 # v4.0.3
           id: version
@@ -105,21 +84,3 @@ jobs:
             notify_when: "success,failure,warnings"
           env:
             SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-    destroy_runner:
-      runs-on: ubuntu-24.04
-      permissions:
-        id-token: write
-        contents: read
-      if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
-      needs:
-        - create_runner
-        - release
-      steps:
-        - name: Destroy Runner
-          id: destroy_runner
-          uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
-          with:
-            cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
-            aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
-            runner_label: ${{ needs.create_runner.outputs.runner_label }}
-            namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }}
