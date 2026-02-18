@@ -7,7 +7,9 @@ The workflow maps the keys in the JSON under `job` and `resources` directly to C
 The workflow will skip all remaining commands if there is some error.
 
 ## Inputs
+`codebuild-runner` Codebuild runner name:
 `config-json` must be a deployment descriptor with to the following structure:
+`vcluster-endpoint` the vcluster to deploy on:
 
 ```json
 {
