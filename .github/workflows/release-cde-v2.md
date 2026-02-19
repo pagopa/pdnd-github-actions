@@ -10,8 +10,11 @@ This GitHub Action automates the deployment of Airflow or Spark jobs on the CDE 
 
 ### Inputs
 
+- `codebuild-runner`: Codebuild runner name:
 - `deploy-type`: Specify the type of job to deploy, either `airflow` or `spark`.
 - `skip-deploy`: Specify whether to skip job deploy.
+- `env-folder`: choose the config folder to use:
+- `vcluster-endpoint`: the vcluster to deploy on:
 
 ### Directory Structure
 
