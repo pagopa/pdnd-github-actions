@@ -178,7 +178,7 @@ jobs:
           echo "New Release Version: ${{ steps.semantic_release.outputs.tag }}"
       - name: Slack Notification
         uses: ravsamhq/notify-slack-action@be814b201e233b2dc673608aa46e5447c8ab13f2
-        if: ${{ always() && !contains(needs.create_runner.result, 'failure') }}
+        if: always()
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           status: ${{ job.status }}

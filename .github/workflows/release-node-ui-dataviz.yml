@@ -1,40 +1,23 @@
 name: Release Node UI - Dataviz
 on:
   workflow_call:
-      inputs:
-        s3_url:
-          required: false
-          type: string
-          description: 'S3 destination path in the format: s3://<bucket>/<project-name>/'
+    inputs:
+      codebuild-runner:
+        description: "Codebuild runner name"
+        required: true
+        type: string
+      s3_url:
+        required: false
+        type: string
+        description: 'S3 destination path in the format: s3://<bucket>/<project-name>/'
 jobs:
-    create_runner:
-      name: Create runner
-      runs-on: ubuntu-24.04
-      if: github.ref_type == 'tag'
-      steps:
-        - name: Create Runner
-          id: create_runner
-          uses: pagopa/pdnd-github-actions/deploy-gh-runner@9abe465ba9d0661d214ee52a7f3fd257833641f2
-          with:
-            api_server: ${{ vars.K8S_API_SERVER }}
-            access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
-            base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
-            name: ${{ github.event.repository.name }}
-            namespace: prod-github-runners
-            image: gateway.private.pdnd.pagopa.it/pagopa/pdnd-aws-runner-nodejs:v1.0.1
-            service_account: github-actions-sa        
-            docker_enabled: true
-            image_pull_secret: regcred
-      outputs:
-        runner_label: ${{ steps.create_runner.outputs.runner_label }}
     release:
       name: Release
-      runs-on: [self-hosted, "${{ needs.create_runner.outputs.runner_label }}"]
+      runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
       # These permissions are needed to interact with GitHub's OIDC Token endpoint.
       permissions:
             id-token: write
             contents: read
-      needs: create_runner
       steps:
         - uses: nowsprinting/check-version-format-action@de7dcbd404b253dd775262e49c9924fa834e17a2 # v4.0.31
           id: version
@@ -80,7 +63,7 @@ jobs:
           run: aws s3 sync ./build ${{env.s3_url}} --delete --exclude "data/*"
         - name: Slack Notification
           uses: ravsamhq/notify-slack-action@bca2d7f5660b833a27bda4f6b8bef389ebfefd25
-          if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
+          if: always()
           with:
             token: ${{ secrets.GITHUB_TOKEN }}
             status: ${{ job.status }}
@@ -90,18 +73,3 @@ jobs:
             notify_when: "success,failure,warnings"
           env:
             SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-    destroy_runner:
-      name: Destroy runner
-      runs-on: ubuntu-24.04
-      if: ${{ always() && !contains(needs.create_runner.result, 'failure') && github.ref_type == 'tag' }}
-      needs: [create_runner, release]
-      steps:
-        - name: Destroy Runner
-          id: destroy_runner
-          uses: pagopa/pdnd-github-actions/undeploy-gh-runner@9abe465ba9d0661d214ee52a7f3fd257833641f2
-          with:
-            api_server: ${{ vars.K8S_API_SERVER }}
-            access_token: ${{ secrets.GH_ACTIONS_SA_ACCESS_TOKEN }}
-            base64_encoded_ca_crt: ${{ secrets.K8S_CA_CRT }}
-            runner_label: ${{ needs.create_runner.outputs.runner_label }}
-            namespace: prod-github-runners

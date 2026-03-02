@@ -3,6 +3,10 @@ name: Backup Cde
 on:
   workflow_call:
     inputs:
+      codebuild-runner:
+        description: "Codebuild runner name"
+        required: true
+        type: string
       vc-name:
         description: 'Virtual Cluster Name'
         required: true
@@ -10,37 +14,12 @@ on:
         type: string
 
 jobs:
-  create-runner:
-    name: Create Runner
-    if: github.ref_type == 'branch'
-    runs-on: ubuntu-24.04
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Create Runner
-        id: create-runner
-        uses: pagopa/pdnd-github-actions/deploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
-        with:
-          name: ${{ github.event.repository.name }}
-          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
-          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
-          namespace: ${{ vars.RUNNER_K8S_NAMESPACE }}
-          image: ${{ vars.RUNNER_DOCKER_IMAGE}}
-          service_account: ${{ vars.RUNNER_SERVICE_ACCOUNT }}        
-          docker_enabled: true
-    outputs:
-      runner_label: ${{ steps.create-runner.outputs.runner_label }}
-
   backup:
     name: Backup
-    runs-on: [self-hosted, "${{ needs.create-runner.outputs.runner_label }}"]
-    needs:
-      - create-runner
-    if: always()
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: setup cdp cli
-        uses: pagopa/pdnd-github-actions/setup-cdp-cli@b6de1cd44031f1b3c8546864b55b713f4d5fdd28
+        uses: pagopa/pdnd-github-actions/setup-cdp-cli@82eed1f3ff421aed8de777b7cb3f1bfb0a4a2475
         with:
           version: "0.9.107"
           access_key_id: "${{ secrets.GH_CDP_ACCESS_KEY_ID }}"
@@ -56,7 +35,7 @@ jobs:
           echo "vc_ui_url=${VC_UI_URL}" >> "$GITHUB_ENV"
           echo "vcluster-endpoint=${VC_ENDPOINT}" >> "$GITHUB_ENV"
       - name: Setup CDE CLI
-        uses: pagopa/pdnd-github-actions/setup-cde-cli@b6de1cd44031f1b3c8546864b55b713f4d5fdd28
+        uses: pagopa/pdnd-github-actions/setup-cde-cli@82eed1f3ff421aed8de777b7cb3f1bfb0a4a2475
         with:
           version: "1.20.3"
           access_key_id: ${{ secrets.GH_CDP_ACCESS_KEY_ID }}
@@ -88,22 +67,3 @@ jobs:
           notify_when: "success,failure,warnings"
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_OP_URL }}
-  destroy_runner:
-    name: Destroy Runner
-    runs-on: ubuntu-24.04
-    permissions:
-      id-token: write
-      contents: read
-    if: ${{ always() && !contains(needs.create-runner.result, 'failure')}}
-    needs:
-      - create-runner
-      - backup
-    steps:
-      - name: Destroy Runner
-        id: destroy_runner
-        uses: pagopa/pdnd-github-actions/undeploy-eks-gh-runner@7fb09afd4227db40789da70cbdaa2c7157abff49
-        with:
-          cluster_name: ${{ vars.RUNNER_CLUSTER_NAME }}
-          aws_runner_deploy_role: ${{ secrets.AWS_RUNNER_DEPLOY_ROLE }}
-          runner_label: ${{ needs.create-runner.outputs.runner_label }}
-          namespace:  ${{ vars.RUNNER_K8S_NAMESPACE }}
