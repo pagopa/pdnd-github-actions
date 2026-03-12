@@ -11,11 +11,16 @@ on:
         default: "20m"
         required: false
         type: string
+      environment:
+        description: "Environment name"
+        default: "prod"
+        required: false
+        type: string
 
 jobs:
   deploy-to-prod:
     environment:
-      name: prod
+      name: ${{ inputs.environment }}
       url: ${{ vars.APP_URL }}
     name: Deploy to K8S
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
