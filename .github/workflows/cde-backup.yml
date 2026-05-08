@@ -3,6 +3,11 @@ name: Backup Cde
 on:
   workflow_call:
     inputs:
+      environment:
+        description: "Envirnoment name"
+        required: true
+        type: string
+        default: 'prod'
       codebuild-runner:
         description: "Codebuild runner name"
         required: true
@@ -16,6 +21,8 @@ on:
 jobs:
   backup:
     name: Backup
+    environment:
+      name: ${{ inputs.environment }}
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: setup cdp cli
