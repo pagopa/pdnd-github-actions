@@ -25,12 +25,19 @@ jobs:
       name: ${{ inputs.environment }}
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
+      - name: Get secrets from AWS Secrets Manager
+        uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            CDP_AUTH,${{ vars.AWS_SECRET_CDP_AUTH }}
+            SLACK_SECRETS,${{ vars.AWS_SECRET_SLACK }}
+          parse-json-secrets: true
       - name: setup cdp cli
         uses: pagopa/pdnd-github-actions/setup-cdp-cli@82eed1f3ff421aed8de777b7cb3f1bfb0a4a2475
         with:
           version: "0.9.107"
-          access_key_id: "${{ secrets.GH_CDP_ACCESS_KEY_ID }}"
-          private_key: "${{ secrets.GH_CDP_PRIVATE_KEY }}"
+          access_key_id: ${{ env.ACCESS_KEY_ID }}
+          private_key: ${{ env.PRIVATE_KEY }}
       - name: Get Cluster Info
         run: |
           VC_UI_URL=$(cdp de list-vcs --cluster-id "${{ vars.CDE_CLUSTER_ID }}" --output json | jq -r --arg VC_NAME "${{ inputs.vc-name }}" '.vcs[] | select(.vcName==$VC_NAME) | .VcUiUrl')
@@ -45,8 +52,8 @@ jobs:
         uses: pagopa/pdnd-github-actions/setup-cde-cli@82eed1f3ff421aed8de777b7cb3f1bfb0a4a2475
         with:
           version: "1.20.3"
-          access_key_id: ${{ secrets.GH_CDP_ACCESS_KEY_ID }}
-          private_key: ${{ secrets.GH_CDP_PRIVATE_KEY }}
+          access_key_id: ${{ env.ACCESS_KEY_ID }}
+          private_key: ${{ env.PRIVATE_KEY }}
           codeartifact_domain: ${{ vars.CODEARTIFACT_DOMAIN }}
           codeartifact_repository: ${{ vars.CODEARTIFACT_REPOSITORY }}
           vcluster_endpoint: ${{ env.vcluster-endpoint }}
@@ -73,4 +80,4 @@ jobs:
           footer: "<{repo_url}|Repo> | <{workflow_url}|Workflow>"
           notify_when: "success,failure,warnings"
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_OP_URL }}
+          SLACK_WEBHOOK_URL: ${{ env.PDND_ARCH_ALERT }}
