@@ -2,12 +2,16 @@ name: Deploy Job manually on env
 on:
   workflow_call:
     inputs:
+      environment:
+        description: 'Choose the environment'
+        required: true
+        type: string
       codebuild-runner:
         description: "Codebuild runner name"
         required: true
         type: string
-      environment:
-        description: 'Choose the environment'
+      virtual-env:
+        description: 'Choose the virtual-env to deploy'
         required: true
         type: string
       config:
@@ -20,6 +24,8 @@ on:
         type: string
 jobs:
   prepare_deploy:
+    environment:
+      name: ${{ inputs.environment }}
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Hack container for local development
@@ -35,7 +41,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            let conf = ".github/workflows/config/${{ github.event.inputs.environment }}/${{ github.event.inputs.config }}.json"
+            let conf = ".github/workflows/config/${{ github.event.inputs.virtual-env }}/${{ github.event.inputs.config }}.json"
             const data = fs.readFileSync(conf, 'utf8');
             conf = JSON.parse(data);
             console.log("using deploy config : ")
@@ -50,9 +56,10 @@ jobs:
       uses: ./.github/workflows/deploy-cde-airflow.yml
       secrets: inherit
       with:
+          environment: ${{ inputs.environment }}
           codebuild-runner: ${{ inputs.codebuild-runner }}
           config-json: ${{ toJson(needs.prepare_deploy.outputs.deploy_configs) }}
-          vcluster-endpoint:  ${{ vars[format('VCLUSTER_ENDPOINT_{0}', github.event.inputs.environment)] }}
+          vcluster-endpoint:  ${{ vars[format('VCLUSTER_ENDPOINT_{0}', github.event.inputs.virtual-env)] }}
   deploy-spark:
     if:  inputs.deploy-type  == 'spark'
     needs:
@@ -60,6 +67,7 @@ jobs:
     uses: ./.github/workflows/deploy-cde-spark.yml
     secrets: inherit
     with:
+        environment: ${{ inputs.environment }}
         codebuild-runner: ${{ inputs.codebuild-runner }}
         config-json: ${{ toJson(needs.prepare_deploy.outputs.deploy_configs) }}
-        vcluster-endpoint:  ${{ vars[format('VCLUSTER_ENDPOINT_{0}', github.event.inputs.environment)] }}
+        vcluster-endpoint:  ${{ vars[format('VCLUSTER_ENDPOINT_{0}', github.event.inputs.virtual-env)] }}

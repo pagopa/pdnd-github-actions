@@ -2,6 +2,10 @@ name: Deploy CDE Airflow Job
 on:
   workflow_call:
     inputs:
+      environment:
+        description: 'Choose the environment'
+        required: true
+        type: string
       codebuild-runner:
         description: "Codebuild runner name"
         required: true
@@ -17,6 +21,8 @@ on:
       
 jobs:
   parse-config:
+    environment:
+      name: ${{ inputs.environment }}
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Hack container for local development
@@ -142,6 +148,8 @@ jobs:
     outputs:
       parsed_config: ${{ steps.parse_json.outputs.result }}
   execute-commands:
+    environment:
+      name: ${{ inputs.environment }}
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     if: ${{ !failure() && !cancelled() }}
     strategy:
