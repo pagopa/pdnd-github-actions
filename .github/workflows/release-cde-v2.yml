@@ -138,6 +138,8 @@ jobs:
         config-json: ${{ toJson(matrix.target) }}
         vcluster-endpoint:  "${{ inputs.vcluster-endpoint-url }}"
   release:
+    environment:
+      name: ${{ inputs.environment }}
     name: Release git tag
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     needs:
