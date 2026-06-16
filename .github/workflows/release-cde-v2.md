@@ -10,6 +10,7 @@ This GitHub Action automates the deployment of Airflow or Spark jobs on the CDE 
 
 ### Inputs
 
+- `environment` Environment, should be dev, prod:
 - `codebuild-runner`: Codebuild runner name:
 - `deploy-type`: Specify the type of job to deploy, either `airflow` or `spark`.
 - `skip-deploy`: Specify whether to skip job deploy.

@@ -2,6 +2,10 @@ name: Release Jobs
 on:
   workflow_call:
     inputs:
+      environment:
+        description: 'Choose the environment'
+        required: true
+        type: string
       codebuild-runner:
         description: "Codebuild runner name"
         required: true
@@ -27,6 +31,8 @@ on:
         default: ${{ vars.VCLUSTER_ENDPOINT_PROD }}
 jobs:
   prepare-release:
+    environment:
+      name: ${{ inputs.environment }}
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Hack container for local development
@@ -110,6 +116,7 @@ jobs:
       uses: ./.github/workflows/deploy-cde-airflow.yml
       secrets: inherit
       with:
+          environment: ${{ inputs.environment }}
           codebuild-runner: ${{ inputs.codebuild-runner }}
           config-json: ${{ toJson(matrix.target) }}
           vcluster-endpoint:  "${{ inputs.vcluster-endpoint-url }}"
@@ -126,10 +133,13 @@ jobs:
     uses: ./.github/workflows/deploy-cde-spark.yml
     secrets: inherit
     with:
+        environment: ${{ inputs.environment }}
         codebuild-runner: ${{ inputs.codebuild-runner }}
         config-json: ${{ toJson(matrix.target) }}
         vcluster-endpoint:  "${{ inputs.vcluster-endpoint-url }}"
   release:
+    environment:
+      name: ${{ inputs.environment }}
     name: Release git tag
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     needs:
@@ -156,6 +166,12 @@ jobs:
         run: |
           echo /runnertmp/externals/node16/bin/ >> $GITHUB_PATH
           echo running on dir : ${{ fromJSON(matrix.run).base_dir }}
+      - name: Get secrets from AWS Secrets Manager
+        uses: aws-actions/aws-secretsmanager-get-secrets@2cb1a461cbd4865ac4299648312e4704c646cd53 # v3
+        with:
+          secret-ids: |
+            SLACK_SECRETS,${{ vars.AWS_SECRET_SLACK }}
+          parse-json-secrets: true
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #v4
         with:
           token: ${{ secrets.PAT_BOT }}
@@ -187,4 +203,4 @@ jobs:
           footer: "<{repo_url}|Repo> | <{workflow_url}|Workflow>"
           notify_when: "success,failure,warnings"
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_SECRETS_PROD_PDND_RELEASES }}
