@@ -216,13 +216,6 @@ jobs:
         with:
           name: build-artifact
           path: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}  
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@fa648b43de3d4d023bcb3f89ed6940096949c419 # v2
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4
-        with:
-            image: ${{ steps.login-ecr.outputs.registry }}/tonistiigi/binfmt-arm64:latest
       - name: Setup CDE CLI
         uses: pagopa/pdnd-github-actions/setup-cde-cli@82eed1f3ff421aed8de777b7cb3f1bfb0a4a2475
         with:
