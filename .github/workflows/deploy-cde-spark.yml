@@ -134,8 +134,6 @@ jobs:
     name: Login Poetry
     environment:
       name: ${{ inputs.environment }}
-    needs:
-      - parse-config
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - id : login-poetry
