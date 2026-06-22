@@ -70,4 +70,4 @@ jobs:
         environment: ${{ inputs.environment }}
         codebuild-runner: ${{ inputs.codebuild-runner }}
         config-json: ${{ toJson(needs.prepare_deploy.outputs.deploy_configs) }}
-        vcluster-endpoint:  ${{ vars.VCLUSTER_ENDPOINT_DEV }}
+        vcluster-endpoint:  "https://kwbdqgg8.cde-jnhgnd6x.pdnd-pro.qbnn-s7j3.cloudera.site/dex/api/v1"
