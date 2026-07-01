@@ -14,8 +14,8 @@ on:
         description: 'config to deploy'
         type: string
         required: true
-      vcluster-endpoint:
-        description: 'the vcluster to deploy on'
+      virtual-env:
+        description: 'the virtual env to deploy on'
         type: string
         required: true
       
@@ -140,7 +140,7 @@ jobs:
             command_sequence.push(job_unpause_cmd)
             res = {
                 "commands" : command_sequence,
-                "vcluster" : "${{ inputs.vcluster-endpoint }}",
+                "vcluster" : "${{ vars[format('VCLUSTER_ENDPOINT_{0}', inputs.virtual-env)] }}",
                 "base_dir" : config.base_dir,
                 "cde_acces_keys" : acces_keys
             }
@@ -177,7 +177,7 @@ jobs:
             private_key: ${{  fromJson(needs.parse-config.outputs.parsed_config).cde_acces_keys.private_key }}
             codeartifact_domain: ${{ vars.CODEARTIFACT_DOMAIN }}
             codeartifact_repository: ${{ vars.CODEARTIFACT_REPOSITORY }}
-            vcluster_endpoint:  ${{ inputs.vcluster-endpoint }}
+            vcluster_endpoint:  ${{ vars[format('VCLUSTER_ENDPOINT_{0}', inputs.virtual-env)] }}
       - name: Run commands
         working-directory: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
         run: |
