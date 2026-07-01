@@ -19,16 +19,11 @@ on:
         required: false
         type: boolean
         default: true
-      env-folder:
-        description: 'choose the config folder to use'
+      virtual-env:
+        description: 'choose the virtual-env to use for the release'
         required: false
         type: string
         default: prod
-      vcluster-endpoint-url:
-        description: 'vcluster endpoint to use for deployment'
-        required: false
-        type: string
-        default: ${{ vars.VCLUSTER_ENDPOINT_PROD }}
 jobs:
   prepare-release:
     environment:
@@ -64,7 +59,7 @@ jobs:
             console.log("modified since last release :")
             console.log(mod_files);
 
-            let config_dir = ".github/workflows/config/${{inputs.env-folder}}"
+            let config_dir = ".github/workflows/config/${{inputs.virtual-env}}"
             const config = fs.readdirSync(config_dir);
 
             function computeConf(files){
@@ -85,7 +80,7 @@ jobs:
                       }
                   })
                   //conf changed
-                  const regex = /^\.github\/workflows\/config\/${{inputs.env-folder}}\/(.+)\.json$/;
+                  const regex = /^\.github\/workflows\/config\/${{inputs.virtual-env}}\/(.+)\.json$/;
                   const match = path.match(regex);
                   if (match) {
                     let fileContent = fs.readFileSync(path, 'utf-8');
@@ -119,7 +114,7 @@ jobs:
           environment: ${{ inputs.environment }}
           codebuild-runner: ${{ inputs.codebuild-runner }}
           config-json: ${{ toJson(matrix.target) }}
-          vcluster-endpoint:  "${{ inputs.vcluster-endpoint-url }}"
+          virtual-env:  "${{ inputs.virtual-env }}"
   deploy-spark:
     if: ${{ inputs.deploy-type == 'spark' && inputs.skip-deploy != true }}
     needs:
@@ -136,7 +131,7 @@ jobs:
         environment: ${{ inputs.environment }}
         codebuild-runner: ${{ inputs.codebuild-runner }}
         config-json: ${{ toJson(matrix.target) }}
-        vcluster-endpoint:  "${{ inputs.vcluster-endpoint-url }}"
+        virtual-env:  "${{ inputs.virtual-env }}"
   release:
     environment:
       name: ${{ inputs.environment }}
