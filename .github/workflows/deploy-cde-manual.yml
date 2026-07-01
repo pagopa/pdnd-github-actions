@@ -53,6 +53,8 @@ jobs:
       if:  inputs.deploy-type  == 'airflow'
       needs:
         - prepare_deploy
+      environment: 
+        name: ${{ inputs.environment }}
       uses: ./.github/workflows/deploy-cde-airflow.yml
       secrets: inherit
       with:
@@ -64,6 +66,8 @@ jobs:
     if:  inputs.deploy-type  == 'spark'
     needs:
       - prepare_deploy
+    environment: 
+      name: ${{ inputs.environment }}
     uses: ./.github/workflows/deploy-cde-spark.yml
     secrets: inherit
     with:
