@@ -76,7 +76,6 @@ jobs:
             function addLocalVenvConf(conf){
               let additionalConf = ""
               if (conf.venv){
-                # additionalConf = " --runtime-image-resource-name ${{ vars.RUNTIME_IMAGE_RESOURCE_NAME }} "
                 additionalConf += ` --conf spark.archives=/app/mount/${conf.venv["file-name"]}.tar.gz#environment `
                 additionalConf += ` --conf spark.pyspark.python=/opt/spark/work-dir/./environment/bin/python3 `
               }
