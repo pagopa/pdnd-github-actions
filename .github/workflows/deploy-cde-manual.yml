@@ -41,7 +41,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            let conf = ".github/workflows/config/${{ github.event.inputs.virtual-env }}/${{ github.event.inputs.config }}.json"
+            let conf = ".github/workflows/config/${{ github.event.inputs.environment }}/${{ github.event.inputs.virtual-env }}/${{ github.event.inputs.config }}.json"
             const data = fs.readFileSync(conf, 'utf8');
             conf = JSON.parse(data);
             console.log("using deploy config : ")

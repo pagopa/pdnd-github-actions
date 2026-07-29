@@ -76,7 +76,7 @@ jobs:
             function addLocalVenvConf(conf){
               let additionalConf = ""
               if (conf.venv){
-                additionalConf = " --runtime-image-resource-name ${{ vars.RUNTIME_IMAGE_RESOURCE_NAME }} "
+                # additionalConf = " --runtime-image-resource-name ${{ vars.RUNTIME_IMAGE_RESOURCE_NAME }} "
                 additionalConf += ` --conf spark.archives=/app/mount/${conf.venv["file-name"]}.tar.gz#environment `
                 additionalConf += ` --conf spark.pyspark.python=/opt/spark/work-dir/./environment/bin/python3 `
               }
@@ -155,14 +155,14 @@ jobs:
       - login-poetry
       - parse-config
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
-    container:
-      image: ${{ vars.CDE_RUNTIME_IMAGE }}
-      credentials:
-        username: AWS
-        password: ${{ needs.login-poetry.outputs.docker_password }}
-      options: 
-        --privileged
-        --user root
+    #container:
+    #  image: ${{ vars.CDE_RUNTIME_IMAGE }}
+    #  credentials:
+    #    username: AWS
+    #    password: ${{ needs.login-poetry.outputs.docker_password }}
+    #  options: 
+    #    --privileged
+    #    --user root
     env:
       POETRY_HTTP_BASIC_ARTIFACT_PASSWORD: ${{ needs.login-poetry.outputs.poetry_token }}
     steps:
