@@ -168,10 +168,6 @@ jobs:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
         with:
           fetch-depth: 0
-      - name: Install System Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-dev libkrb5-dev
       - name: Build Project
         working-directory: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
         continue-on-error: false
