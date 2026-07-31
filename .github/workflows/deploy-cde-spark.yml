@@ -75,10 +75,6 @@ jobs:
             }
             function addLocalVenvConf(conf){
               let additionalConf = ""
-              if (conf.venv){
-                additionalConf += ` --conf spark.archives=/app/mount/${conf.venv["file-name"]}.tar.gz#environment `
-                additionalConf += ` --conf spark.pyspark.python=/opt/spark/work-dir/environment/bin/python3 `
-              }
               return additionalConf
             }
             const fs = require('fs');
@@ -180,8 +176,10 @@ jobs:
           poetry install --without test,dev --no-root
           poetry build -f wheel -n 
           poetry run pip install --no-deps dist/*.whl
-          poetry run pip install venv-pack2
-          poetry run venv-pack -o ${{  fromJson(needs.parse-config.outputs.parsed_config).venv.file-name }}.tar.gz
+          #poetry run pip install venv-pack2
+          poetry run pip install conda-pack
+          #poetry run venv-pack -o ${{  fromJson(needs.parse-config.outputs.parsed_config).venv.file-name }}.tar.gz
+          poetry run conda-pack -o ${{  fromJson(needs.parse-config.outputs.parsed_config).venv.file-name }}.tar.gz
       - name: Upload Build Artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
