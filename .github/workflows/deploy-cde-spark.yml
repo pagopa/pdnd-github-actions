@@ -77,6 +77,7 @@ jobs:
               let additionalConf = ""
               if (conf.venv){
                 additionalConf += ` --conf spark.archives=/app/mount/${conf.venv["file-name"]}.tar.gz#environment `
+                additionalConf += ` --conf spark.pyspark.python=/opt/spark/work-dir/./environment/bin/python3 `
               }
               return additionalConf
             }
@@ -167,6 +168,9 @@ jobs:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
         with:
           fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
       - name: Build Project
         working-directory: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
         continue-on-error: false
@@ -188,7 +192,7 @@ jobs:
     environment:
       name: ${{ inputs.environment }}
     name: Execute commands
-    runs-on: codebuild-job-utils-deploy-prod-legacy-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     if: ${{ !failure() && !cancelled() }}
     strategy:
       max-parallel: 1
