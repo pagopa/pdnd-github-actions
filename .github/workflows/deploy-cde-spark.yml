@@ -188,7 +188,7 @@ jobs:
     environment:
       name: ${{ inputs.environment }}
     name: Execute commands
-    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: codebuild-job-utils-deploy-prod-legacy-${{ github.run_id }}-${{ github.run_attempt }}
     if: ${{ !failure() && !cancelled() }}
     strategy:
       max-parallel: 1
