@@ -76,7 +76,7 @@ jobs:
             function addLocalVenvConf(conf){
               let additionalConf = ""
               if (conf.venv){
-                additionalConf += ` --conf spark.archives=/${resource.create.name}/${conf.venv["file-name"]}.tar.gz#environment `
+                additionalConf += ` --conf spark.archives=/ingestion/${conf.venv["file-name"]}.tar.gz#environment `
                 additionalConf += ` --conf spark.pyspark.python=./environment/bin/python3 \ `
                 additionalConf += ` --conf spark.pyspark.driver.python=./environment/bin/python3 \ `
               }
