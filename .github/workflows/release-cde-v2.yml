@@ -176,15 +176,15 @@ jobs:
           git pull origin main
           git config --global --add safe.directory $GITHUB_WORKSPACE/${{ fromJSON(matrix.run).base_dir }}
       - name: Python Semantic Release
-        uses: python-semantic-release/python-semantic-release@21ed7fa03e4a17ac49406eff4b60d5ad050fbdc2 #v9.21.2
+        uses: python-semantic-release/python-semantic-release@39dd2052f2ce8282a5d932c31d58a2ca06d2550e #v10.6.1
         id: semantic_release
         with:
           directory:  ${{ fromJSON(matrix.run).base_dir }}
           github_token: ${{ secrets.PAT_BOT }}
           push: "true"
           tag: "true"
-          git_committer_name: "github-actions[bot]"
-          git_committer_email: "github-actions[bot]@users.noreply.github.com"
+          #git_committer_name: "github-actions[bot]"
+          #git_committer_email: "github-actions[bot]@users.noreply.github.com"
       - name: Check Calculated Version Output
         if: steps.semantic_release.outputs.released
         run: |
