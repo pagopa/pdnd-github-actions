@@ -176,29 +176,34 @@ jobs:
           git pull origin main
           git config --global --add safe.directory $GITHUB_WORKSPACE/${{ fromJSON(matrix.run).base_dir }}
       - name: Python Semantic Release
-        #uses: python-semantic-release/python-semantic-release@39dd2052f2ce8282a5d932c31d58a2ca06d2550e #v10.6.1
-        uses: olivialewke/python-semantic-release@fix-gitpython-3.1.60-actor-regex  ##TO REMOVE workaround for testing
         id: semantic_release
-        with:
-          directory:  ${{ fromJSON(matrix.run).base_dir }}
-          github_token: ${{ secrets.PAT_BOT }}
-          push: "true"
-          tag: "true"
-          #git_committer_name: "github-actions[bot]"
-          #git_committer_email: "github-actions[bot]@users.noreply.github.com"
+        working-directory: ${{ fromJSON(matrix.run).base_dir }}
+        env:
+          GH_TOKEN: ${{ secrets.PAT_BOT }}
+        run: |
+          pipx run --spec "python-semantic-release>=9.20.0" --spec "GitPython<3.1.44" semantic-release version --tag --push
+      #- name: Python Semantic Release
+      #  uses: python-semantic-release/python-semantic-release@39dd2052f2ce8282a5d932c31d58a2ca06d2550e #v10.6.1
+      #  id: semantic_release
+      #  with:
+      #    directory:  ${{ fromJSON(matrix.run).base_dir }}
+      #    github_token: ${{ secrets.PAT_BOT }}
+      #    push: "true"
+      #    tag: "true"
+      #    
       - name: Check Calculated Version Output
         if: steps.semantic_release.outputs.released
         run: |
           echo "New Release Version: ${{ steps.semantic_release.outputs.tag }}"
-      - name: Slack Notification
-        uses: ravsamhq/notify-slack-action@be814b201e233b2dc673608aa46e5447c8ab13f2
-        if: always()
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          status: ${{ job.status }}
-          notification_title: "{workflow} has {status_message}"
-          message_format: "{emoji} *{workflow}* <https://github.com/{repo}/actions/runs/${{ github.run_id }}|${{github.ref_name}}> {status_message} in <{repo_url}|{repo}>"
-          footer: "<{repo_url}|Repo> | <{workflow_url}|Workflow>"
-          notify_when: "success,failure,warnings"
-        env:
-          SLACK_WEBHOOK_URL: ${{ env.SLACK_SECRETS_PROD_PDND_RELEASES }}
+      #- name: Slack Notification
+      #  uses: ravsamhq/notify-slack-action@be814b201e233b2dc673608aa46e5447c8ab13f2
+      #  if: always()
+      #  with:
+      #    token: ${{ secrets.GITHUB_TOKEN }}
+      #    status: ${{ job.status }}
+      #    notification_title: "{workflow} has {status_message}"
+      #    message_format: "{emoji} *{workflow}* <https://github.com/{repo}/actions/runs/${{ github.run_id }}|${{github.ref_name}}> {status_message} in <{repo_url}|{repo}>"
+      #    footer: "<{repo_url}|Repo> | <{workflow_url}|Workflow>"
+      #    notify_when: "success,failure,warnings"
+      #  env:
+      #    SLACK_WEBHOOK_URL: ${{ env.SLACK_SECRETS_PROD_PDND_RELEASES }}
