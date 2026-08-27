@@ -177,8 +177,8 @@ jobs:
           git config --global --add safe.directory $GITHUB_WORKSPACE/${{ fromJSON(matrix.run).base_dir }}
 
       - name: Install Ruff
-        uses: threeal/pipx-install-action@v2.0.0
-        
+        uses: threeal/pipx-install-action@v1.0
+
       - name: Python Semantic Release
         id: semantic_release
         working-directory: ${{ fromJSON(matrix.run).base_dir }}
