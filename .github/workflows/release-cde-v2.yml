@@ -183,6 +183,8 @@ jobs:
           github_token: ${{ secrets.PAT_BOT }}
           push: "true"
           tag: "true"
+          git_committer_name: "github-actions[bot]"
+          git_committer_email: "github-actions[bot]@users.noreply.github.com"
       - name: Check Calculated Version Output
         if: steps.semantic_release.outputs.released
         run: |
