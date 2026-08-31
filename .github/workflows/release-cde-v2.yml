@@ -175,26 +175,14 @@ jobs:
         run: |
           git pull origin main
           git config --global --add safe.directory $GITHUB_WORKSPACE/${{ fromJSON(matrix.run).base_dir }}
-
-      - name: Install Ruff
-        uses: threeal/pipx-install-action@v1.0
-
       - name: Python Semantic Release
+        uses: python-semantic-release/python-semantic-release@9a026e9303981c866c3425723009becb2437c757 #v10.6.2
         id: semantic_release
-        working-directory: ${{ fromJSON(matrix.run).base_dir }}
-        env:
-          GH_TOKEN: ${{ secrets.PAT_BOT }}
-        run: |
-          pipx run --spec "python-semantic-release>=9.20.0" --spec "GitPython<3.1.44" semantic-release version --tag --push
-      #- name: Python Semantic Release
-      #  uses: python-semantic-release/python-semantic-release@39dd2052f2ce8282a5d932c31d58a2ca06d2550e #v10.6.1
-      #  id: semantic_release
-      #  with:
-      #    directory:  ${{ fromJSON(matrix.run).base_dir }}
-      #    github_token: ${{ secrets.PAT_BOT }}
-      #    push: "true"
-      #    tag: "true"
-      #    
+        with:
+          directory:  ${{ fromJSON(matrix.run).base_dir }}
+          github_token: ${{ secrets.PAT_BOT }}
+          push: "true"
+          tag: "true"
       - name: Check Calculated Version Output
         if: steps.semantic_release.outputs.released
         run: |
