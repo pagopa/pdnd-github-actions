@@ -187,15 +187,15 @@ jobs:
         if: steps.semantic_release.outputs.released
         run: |
           echo "New Release Version: ${{ steps.semantic_release.outputs.tag }}"
-      #- name: Slack Notification
-      #  uses: ravsamhq/notify-slack-action@be814b201e233b2dc673608aa46e5447c8ab13f2
-      #  if: always()
-      #  with:
-      #    token: ${{ secrets.GITHUB_TOKEN }}
-      #    status: ${{ job.status }}
-      #    notification_title: "{workflow} has {status_message}"
-      #    message_format: "{emoji} *{workflow}* <https://github.com/{repo}/actions/runs/${{ github.run_id }}|${{github.ref_name}}> {status_message} in <{repo_url}|{repo}>"
-      #    footer: "<{repo_url}|Repo> | <{workflow_url}|Workflow>"
-      #    notify_when: "success,failure,warnings"
-      #  env:
-      #    SLACK_WEBHOOK_URL: ${{ env.SLACK_SECRETS_PROD_PDND_RELEASES }}
+      - name: Slack Notification
+        uses: ravsamhq/notify-slack-action@be814b201e233b2dc673608aa46e5447c8ab13f2
+        if: always()
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          status: ${{ job.status }}
+          notification_title: "{workflow} has {status_message}"
+          message_format: "{emoji} *{workflow}* <https://github.com/{repo}/actions/runs/${{ github.run_id }}|${{github.ref_name}}> {status_message} in <{repo_url}|{repo}>"
+          footer: "<{repo_url}|Repo> | <{workflow_url}|Workflow>"
+          notify_when: "success,failure,warnings"
+        env:
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_SECRETS_PROD_PDND_RELEASES }}
