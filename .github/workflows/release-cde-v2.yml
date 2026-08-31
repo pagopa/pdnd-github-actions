@@ -176,7 +176,7 @@ jobs:
           git pull origin main
           git config --global --add safe.directory $GITHUB_WORKSPACE/${{ fromJSON(matrix.run).base_dir }}
       - name: Python Semantic Release
-        uses: python-semantic-release/python-semantic-release@fe6b271e942115b528c85e42bc19611b01dcea59 #v9.8.8
+        uses: python-semantic-release/python-semantic-release@9a026e9303981c866c3425723009becb2437c757 #v10.6.2
         id: semantic_release
         with:
           directory:  ${{ fromJSON(matrix.run).base_dir }}
