@@ -22,6 +22,11 @@ on:
         default: false
         required: false
         type: boolean
+      update-validation-values:
+        description: "Update validation Helm values with the promoted PROD image digest."
+        default: false
+        required: false
+        type: boolean
 
 jobs:
   prepare-release:
@@ -162,6 +167,9 @@ jobs:
         run: |
           yq e "${{ inputs.docker-image-to-update }} = \"pr-${{ steps.find_pr.outputs.pull-request-number }}\"" -i .k8s/helm/env-values/dev.yaml
           yq e "${{ inputs.docker-image-to-update }} = \"${{ steps.push_image.outputs.prod_digest }}\"" -i .k8s/helm/env-values/prod.yaml
+          if [[ "${{ inputs.update-validation-values }}" == "true" ]]; then
+            yq e "${{ inputs.docker-image-to-update }} = \"${{ steps.push_image.outputs.prod_digest }}\"" -i .k8s/helm/env-values/val.yaml
+          fi
 
       - name: Update and Push Helm Chart to PROD ECR
         if: inputs.skip-promote == false
@@ -185,7 +193,7 @@ jobs:
         with:
           branch: ${{ needs.prepare-release.outputs.release_pr_head }}
           commit_message: "[skip ci] chore(prod): promote version ${{ steps.release_version.outputs.release_version }}"
-          file_pattern: '.k8s/helm/env-values/prod.yaml .k8s/helm/Chart.yaml'
+          file_pattern: ${{ inputs.update-validation-values && '.k8s/helm/env-values/prod.yaml .k8s/helm/env-values/val.yaml .k8s/helm/Chart.yaml' || '.k8s/helm/env-values/prod.yaml .k8s/helm/Chart.yaml' }}
 
     outputs:
       release_version: ${{ steps.release_version.outputs.release_version }}
