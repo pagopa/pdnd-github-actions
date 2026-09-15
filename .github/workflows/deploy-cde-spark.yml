@@ -173,6 +173,7 @@ jobs:
     needs:
       - parse-config
       - build-pyfiles
+    strategy:
       max-parallel: 1
       matrix:
         command: ${{ fromJson(needs.parse-config.outputs.parsed_config).commands }}
