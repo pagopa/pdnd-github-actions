@@ -173,6 +173,11 @@ jobs:
     needs:
       - parse-config
       - build-pyfiles
+    if: |
+      always() &&
+      needs.parse-config.result == 'success' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
     strategy:
       max-parallel: 1
       matrix:
