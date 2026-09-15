@@ -137,7 +137,7 @@ jobs:
       parsed_config: ${{ steps.parse_json.outputs.result }}
 
   build-pyfiles:
-    name: Build Py-Files ZIP
+    name: Build Py-Files
     environment:
       name: ${{ inputs.environment }}
     if: ${{ fromJson(needs.parse-config.outputs.parsed_config).py_files_package && fromJson(needs.parse-config.outputs.parsed_config).py_files_package.enabled }}
