@@ -39,10 +39,10 @@ jobs:
             fetch-depth: 0
       - name: Get Latest Tag
         id: get-latest-tag
-        uses: WyriHaximus/github-action-get-previous-tag@04e8485ecb6487243907e330d522ff60f02283ce
+        uses: WyriHaximus/github-action-get-previous-tag@83f26fea93bc7efcbca2eb5591f5eaaf66b8f206 #v2
       - name: Get changed folders
         id: changed-files
-        uses: tj-actions/changed-files@e9772d140489982e0e3704fea5ee93d536f1e275        
+        uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 #v47.0.6       
         with:
             dir_names_exclude_current_dir: true
             matrix: true
@@ -50,7 +50,7 @@ jobs:
             base_sha: ${{ steps.get-latest-tag.outputs.tag }}
       - name: Build commands
         id: compute-release
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 #v9
         with:
           script: |
             const fs = require('fs');
@@ -188,7 +188,7 @@ jobs:
         run: |
           echo "New Release Version: ${{ steps.semantic_release.outputs.tag }}"
       - name: Slack Notification
-        uses: ravsamhq/notify-slack-action@be814b201e233b2dc673608aa46e5447c8ab13f2
+        uses: ravsamhq/notify-slack-action@be814b201e233b2dc673608aa46e5447c8ab13f2 #v2
         if: always()
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

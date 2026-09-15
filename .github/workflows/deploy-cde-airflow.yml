@@ -29,7 +29,7 @@ jobs:
         if: ${{ env.ACT }}
         run: echo /runnertmp/externals/node16/bin/ >> $GITHUB_PATH
       - name: Checkout the repository
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7
       - name: Validate schema write file
         run: |
           echo ${{ inputs.config-json }} | sed 's/\\"/"/g' | jq . > input_config.json
@@ -163,7 +163,7 @@ jobs:
         if: ${{ env.ACT }}
         run: echo /runnertmp/externals/node16/bin/ >> $GITHUB_PATH
       - name: Checkout the repository
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7
       - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
         if: ${{  fromJson(needs.parse-config.outputs.parsed_config).venv }}
         with:
