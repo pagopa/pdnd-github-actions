@@ -34,7 +34,7 @@ jobs:
         if: ${{ env.ACT }}
         run: echo /runnertmp/externals/node16/bin/ >> $GITHUB_PATH
       - name: Checkout
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7
         with:
             fetch-depth: 0
       - name: Get Latest Tag
@@ -167,7 +167,7 @@ jobs:
           secret-ids: |
             SLACK_SECRETS,${{ vars.AWS_SECRET_SLACK }}
           parse-json-secrets: true
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7
         with:
           token: ${{ secrets.PAT_BOT }}
           fetch-depth: 0
