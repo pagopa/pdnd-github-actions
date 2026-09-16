@@ -34,13 +34,13 @@ jobs:
           echo ${{ inputs.config-json }} | sed 's/\\"/"/g' | jq . > input_config.json
           echo '{"$schema": "http://json-schema.org/draft-07/schema#","type": "object","properties": {"job": {"type": "object","properties": {"name": {"type": "string"},"application-file": {"type": "string"},"dag-file": {"type": "string"}},"required": ["name"],"additionalProperties": true},"resources": {"type": "array","minItems": 1,"items": {"type": "object","properties": {"create": {"type": "object","additionalProperties": true},"upload": {"type": "array","minItems": 1,"items": {"type": "object","additionalProperties": true}}},"required": ["create", "upload"],"additionalProperties": true}},"py_files_package": {"type": "object","properties": {"enabled": {"type": "boolean"},"archive_name": {"type": "string"},"resource": {"type": "string"}},"additionalProperties": true},"job_default_args": {"type": "boolean"},"owner": {"type": "string"},"base_dir": {"type": "string"}},"required": ["job", "base_dir", "resources"],"additionalProperties": false}' > schema.json
       - name: Validate schema
-        uses: cardinalby/schema-validator-action@2166123eb256fa40baef7e22ab1379708425efc7
+        uses: cardinalby/schema-validator-action@95ce895b6846cc7d931785fcaa46c84816753612 #3.1.2
         with:
           file: 'input_config.json'
           schema: 'schema.json'
       - name: Build commands
         id: parse_json
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 #v9
         with:
           script: |
             function buildOptions(json){
