@@ -33,10 +33,10 @@ jobs:
         run: echo /runnertmp/externals/node16/bin/ >> $GITHUB_PATH
       - name: Checkout
         id: checkout
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7
       - name: Extract cde config
         id: extract-deploy-configs
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea #v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 #v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

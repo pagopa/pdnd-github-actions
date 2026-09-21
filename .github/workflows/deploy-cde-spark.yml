@@ -28,23 +28,23 @@ jobs:
         if: ${{ env.ACT }}
         run: echo /runnertmp/externals/node16/bin/ >> $GITHUB_PATH
       - name: Checkout the repository
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7
       - name: Validate schema write file
         run: |
           echo ${{ inputs.config-json }} | sed 's/\\"/"/g' | jq . > input_config.json
-          echo '{"$schema": "http://json-schema.org/draft-07/schema#","type": "object","properties": {"job": {"type": "object","properties": {"name": {"type": "string"},"application-file": {"type": "string"},"dag-file": {"type": "string"}},"required": ["name"],"additionalProperties": true},"resources": {"type": "array","minItems": 1,"items": {"type": "object","properties": {"create": {"type": "object","additionalProperties": true},"upload": {"type": "array","minItems": 1,"items": {"type": "object","additionalProperties": true}}},"required": ["create", "upload"],"additionalProperties": true}},"venv": {"type": "object","properties": {"file-name": {"type": "string"},"resource": {"type": "string"}},"additionalProperties": true},"job_default_args": {"type": "boolean"},"owner": {"type": "string"},"base_dir": {"type": "string"}},"required": ["job", "base_dir", "resources"],"additionalProperties": false}' > schema.json
+          echo '{"$schema": "http://json-schema.org/draft-07/schema#","type": "object","properties": {"job": {"type": "object","properties": {"name": {"type": "string"},"application-file": {"type": "string"},"dag-file": {"type": "string"}},"required": ["name"],"additionalProperties": true},"resources": {"type": "array","minItems": 1,"items": {"type": "object","properties": {"create": {"type": "object","additionalProperties": true},"upload": {"type": "array","minItems": 1,"items": {"type": "object","additionalProperties": true}}},"required": ["create", "upload"],"additionalProperties": true}},"py_files_package": {"type": "object","properties": {"enabled": {"type": "boolean"},"archive_name": {"type": "string"},"resource": {"type": "string"}},"additionalProperties": true},"job_default_args": {"type": "boolean"},"owner": {"type": "string"},"base_dir": {"type": "string"}},"required": ["job", "base_dir", "resources"],"additionalProperties": false}' > schema.json
       - name: Validate schema
-        uses: cardinalby/schema-validator-action@2166123eb256fa40baef7e22ab1379708425efc7
+        uses: cardinalby/schema-validator-action@95ce895b6846cc7d931785fcaa46c84816753612 #3.1.2
         with:
           file: 'input_config.json'
           schema: 'schema.json'
       - name: Build commands
         id: parse_json
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 #v9
         with:
           script: |
             function buildOptions(json){
-                var command = ''
+                var command = '';
                 for (const [key, value] of Object.entries(json)) {
                     if (typeof value === 'boolean') {
                         if (value) {
@@ -61,48 +61,46 @@ jobs:
                         command += ` --${key}="${value}"`;
                     }
                 }
-                return command
+                return command;
             }
+
             function addDefaultJobArgs(conf){
-              let additionalArgs = ""
+              let additionalArgs = "";
               if (conf.job_default_args){
-                additionalArgs = " --arg --knox_config.gateway "
-                additionalArgs += " --arg ${{ vars.KNOX_GATEWAY }} "
-                additionalArgs += " --arg --knox_config.hostname "
-                additionalArgs += " --arg ${{ vars.KNOX_HOSTNAME }} "
+                additionalArgs = " --arg --knox_config.gateway ";
+                additionalArgs += " --arg ${{ vars.KNOX_GATEWAY }} ";
+                additionalArgs += " --arg --knox_config.hostname ";
+                additionalArgs += " --arg ${{ vars.KNOX_HOSTNAME }} ";
               }
-              return additionalArgs
+              return additionalArgs;
             }
-            function addLocalVenvConf(conf){
-              let additionalConf = ""
-              if (conf.venv){
-                additionalConf = " --runtime-image-resource-name ${{ vars.RUNTIME_IMAGE_RESOURCE_NAME }} "
-                additionalConf += ` --conf spark.archives=/app/mount/${conf.venv["file-name"]}.tar.gz#environment `
-                additionalConf += ` --conf spark.pyspark.python=/opt/spark/work-dir/./environment/bin/python3 `
-              }
-              return additionalConf
-            }
-            const fs = require('fs');
-            console.log("input provided : ")
-            console.log(${{ inputs.config-json }})
-            config=JSON.parse(${{ inputs.config-json }});
+
+            const config = JSON.parse(${{ inputs.config-json }});
             console.log("Using configuration:", config);
             const command_sequence = [];
-            let opts = buildOptions(config.job) + addDefaultJobArgs(config) + addLocalVenvConf(config)
+
+            const isZipEnabled = config.py_files_package && config.py_files_package.enabled === true;
+            const defaultZipName = `${config.base_dir || config.job.name}.zip`;
+            const zipName = (config.py_files_package && config.py_files_package.archive_name) || defaultZipName;
+            const zipResource = (config.py_files_package && config.py_files_package.resource) || config.job["mount-1-resource"] || config.job.name;
+
+            function addPyFilesOption() {
+              if (isZipEnabled) {
+                return ` --py-files="/app/mount/${zipName}" `;
+              }
+              return "";
+            }
+
+            let opts = buildOptions(config.job) + addDefaultJobArgs(config) + addPyFilesOption();
 
             const job_delete_cmd = `
                 if cde job describe --name ${config.job.name} >/dev/null 2>&1; then
                   cde job delete --name ${config.job.name}
                 fi;
             `;
-            command_sequence.push(job_delete_cmd)
-            
-            const job_create_cmd = `
-                cde job create --type="spark" ${opts}
-            `;
+            command_sequence.push(job_delete_cmd);
 
             config.resources.forEach(resource => {
-
               const create_cmd = `
                   if cde resource describe --name ${resource.create.name} >/dev/null 2>&1; then
                     cde resource delete --name ${resource.create.name}
@@ -110,112 +108,97 @@ jobs:
                   cde resource create ${buildOptions(resource.create)}
               `;
               command_sequence.push(create_cmd);
-              resource.upload.forEach(upload =>{
-                      const upload_cmd = "cde resource upload " + buildOptions(upload)
-                      command_sequence.push(upload_cmd)
-                  })
+              resource.upload.forEach(upload => {
+                const upload_cmd = "cde resource upload " + buildOptions(upload);
+                command_sequence.push(upload_cmd);
+              });
             });
-            if (config.venv){
-              upload_venv_cmd = `cde resource upload --name ${config.venv.resource} --local-path ${config.venv["file-name"]}.tar.gz`
-              command_sequence.push(upload_venv_cmd)
+
+            if (isZipEnabled) {
+              const upload_zip_cmd = `cde resource upload --name ${zipResource} --local-path ${zipName}`;
+              command_sequence.push(upload_zip_cmd);
             }
-            command_sequence.push(job_create_cmd)
-            res = {
-                "commands" : command_sequence,
-                "vcluster" : "${{ vars[format('VCLUSTER_ENDPOINT_{0}', inputs.virtual-env)] }}",
-                "venv" : config.venv,
-                "base_dir" : config.base_dir,
-                "job_default_args" : config.job_default_args
-            }
-            return res
+
+            const job_create_cmd = `
+                cde job create --type="spark" ${opts}
+            `;
+            command_sequence.push(job_create_cmd);
+
+            const res = {
+                "commands": command_sequence,
+                "vcluster": "${{ vars[format('VCLUSTER_ENDPOINT_{0}', inputs.virtual-env)] }}",
+                "py_files_package": config.py_files_package,
+                "archive_name": zipName,
+                "base_dir": config.base_dir,
+                "job_default_args": config.job_default_args
+            };
+            return res;
     outputs:
       parsed_config: ${{ steps.parse_json.outputs.result }}
-  login-poetry:
-    name: Login Poetry
+
+  build-pyfiles:
+    name: Build Py-Files
     environment:
       name: ${{ inputs.environment }}
-    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
-    steps:
-      - id : login-poetry
-        run : |
-            echo "POETRY_HTTP_BASIC_ARTIFACT_PASSWORD=$(aws codeartifact get-authorization-token --domain-owner 688071769384 \
-              --domain ${{ vars.CODEARTIFACT_DOMAIN }} --query 'authorizationToken' --output text)" >> "$GITHUB_OUTPUT"
-      - id : login-ecr
-        run : |
-            echo "ECR_PASSWORD=$(aws ecr get-login-password --region eu-central-1)" >> "$GITHUB_OUTPUT"
-    outputs:
-      poetry_token: ${{ steps.login-poetry.outputs.POETRY_HTTP_BASIC_ARTIFACT_PASSWORD }}
-      docker_password: ${{ steps.login-ecr.outputs.ECR_PASSWORD }}
-  build-venv:
-    name: Build Env
-    environment:
-      name: ${{ inputs.environment }}
-    if: ${{  fromJson(needs.parse-config.outputs.parsed_config).venv }}
+    if: ${{ fromJson(needs.parse-config.outputs.parsed_config).py_files_package && fromJson(needs.parse-config.outputs.parsed_config).py_files_package.enabled }}
     needs:
-      - login-poetry
       - parse-config
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
-    container:
-      image: ${{ vars.CDE_RUNTIME_IMAGE }}
-      credentials:
-        username: AWS
-        password: ${{ needs.login-poetry.outputs.docker_password }}
-      options: 
-        --privileged
-        --user root
-    env:
-      POETRY_HTTP_BASIC_ARTIFACT_PASSWORD: ${{ needs.login-poetry.outputs.poetry_token }}
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
-        with:
-          fetch-depth: 0
-      - name: Build Project
-        working-directory: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
-        continue-on-error: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7
+      - name: Create ZIP archive
+        working-directory: ${{ fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
         run: |
-          poetry config virtualenvs.in-project true
-          poetry config virtualenvs.create true
-          poetry install --without test,dev --no-root
-          poetry build -f wheel -n 
-          poetry run pip install --no-deps dist/*.whl
-          poetry run pip install venv-pack2
-          poetry run venv-pack -o ${{  fromJson(needs.parse-config.outputs.parsed_config).venv.file-name }}.tar.gz
-      - name: Upload Build Artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+          ZIP_NAME="${{ fromJson(needs.parse-config.outputs.parsed_config).archive_name }}"
+          echo "Packaging py-files into $ZIP_NAME..."
+          if [ -d "src" ]; then
+            cd src
+            zip -r "../$ZIP_NAME" . -x "*tests/*" -x "*test/*" -x "*__pycache__/*" -x "*.pyc" -x "*.pytest_cache/*"
+            cd ..
+          else
+            zip -r "$ZIP_NAME" . -x "*tests/*" -x "*test/*" -x "*__pycache__/*" -x "*.pyc" -x "*.pytest_cache/*" -x "*.venv/*"
+          fi
+      - name: Upload Py-Files Artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: build-artifact
-          path: ${{ fromJson(needs.parse-config.outputs.parsed_config).base_dir }}/${{ fromJson(needs.parse-config.outputs.parsed_config).venv.file-name }}.tar.gz
+          name: py-files-artifact
+          path: ${{ fromJson(needs.parse-config.outputs.parsed_config).base_dir }}/${{ fromJson(needs.parse-config.outputs.parsed_config).archive_name }}
           overwrite: true
+
   execute-commands:
     environment:
       name: ${{ inputs.environment }}
     name: Execute commands
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
-    if: ${{ !failure() && !cancelled() }}
+    needs:
+      - parse-config
+      - build-pyfiles
+    if: |
+      always() &&
+      needs.parse-config.result == 'success' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
     strategy:
       max-parallel: 1
       matrix:
-        command: ${{  fromJson(needs.parse-config.outputs.parsed_config).commands }}
-    needs:
-      - parse-config
-      - build-venv
+        command: ${{ fromJson(needs.parse-config.outputs.parsed_config).commands }}
     steps:
       - name: Hack container for local development
         if: ${{ env.ACT }}
         run: echo /runnertmp/externals/node16/bin/ >> $GITHUB_PATH
       - name: Get secrets from AWS Secrets Manager
-        uses: aws-actions/aws-secretsmanager-get-secrets@2cb1a461cbd4865ac4299648312e4704c646cd53 # v3
+        uses: aws-actions/aws-secretsmanager-get-secrets@2cb1a461cbd4865ac4299648312e4704c646cd53
         with:
           secret-ids: |
             CDP_AUTH,${{ vars.AWS_SECRET_CDP_AUTH }}
           parse-json-secrets: true
       - name: Checkout the repository
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
-        if: ${{  fromJson(needs.parse-config.outputs.parsed_config).venv }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        if: ${{ fromJson(needs.parse-config.outputs.parsed_config).py_files_package && fromJson(needs.parse-config.outputs.parsed_config).py_files_package.enabled }}
         with:
-          name: build-artifact
-          path: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}  
+          name: py-files-artifact
+          path: ${{ fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
       - name: Setup CDE CLI
         uses: pagopa/pdnd-github-actions/setup-cde-cli@82eed1f3ff421aed8de777b7cb3f1bfb0a4a2475
         with:
@@ -224,9 +207,9 @@ jobs:
             private_key: ${{ env.CDP_AUTH_PRIVATE_KEY }}
             codeartifact_domain: ${{ vars.CODEARTIFACT_DOMAIN }}
             codeartifact_repository: ${{ vars.CODEARTIFACT_REPOSITORY }}
-            vcluster_endpoint:  ${{ vars[format('VCLUSTER_ENDPOINT_{0}', inputs.virtual-env)] }}
+            vcluster_endpoint: ${{ vars[format('VCLUSTER_ENDPOINT_{0}', inputs.virtual-env)] }}
       - name: Run commands
-        working-directory: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
+        working-directory: ${{ fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
         run: |
           echo executing command : '${{ matrix.command }}'
           eval "${{ matrix.command }}"
