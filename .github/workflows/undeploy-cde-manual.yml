@@ -41,7 +41,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            let conf = ".github/workflows/config/${{ github.event.inputs.virtual-env }}/${{ github.event.inputs.config }}.json"
+            let conf = ".github/workflows/config/${{ inputs.environment }}/${{ inputs.virtual-env }}/${{ inputs.config }}.json"
             const data = fs.readFileSync(conf, 'utf8');
             conf = JSON.parse(data);
             console.log("using deploy config : ")
@@ -60,7 +60,7 @@ jobs:
         environment: ${{ inputs.environment }}
         codebuild-runner: ${{ inputs.codebuild-runner }}
         config-json: ${{ toJson(needs.prepare_deploy.outputs.deploy_configs) }}
-        vcluster-endpoint:  ${{ vars[format('VCLUSTER_ENDPOINT_{0}', github.event.inputs.virtual-env)] }}
+        virtual-env: ${{ inputs.virtual-env }}
   deploy-spark:
     if:  inputs.deploy-type  == 'spark'
     needs:
@@ -71,4 +71,4 @@ jobs:
         environment: ${{ inputs.environment }}
         codebuild-runner: ${{ inputs.codebuild-runner }}
         config-json: ${{ toJson(needs.prepare_deploy.outputs.deploy_configs) }}
-        vcluster-endpoint:  ${{ vars[format('VCLUSTER_ENDPOINT_{0}', github.event.inputs.virtual-env)] }}
+        virtual-env: ${{ inputs.virtual-env }}
