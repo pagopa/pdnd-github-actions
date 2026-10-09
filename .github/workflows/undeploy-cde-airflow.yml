@@ -13,9 +13,10 @@ on:
       config-json:
         description: 'config to undeploy'
         type: string
-      vcluster-endpoint:
-        description: 'the vcluster to deploy on'
+      virtual-env:
+        description: 'the virtual env to deploy on'
         type: string
+        required: true
 jobs:
   parse-config:
     environment:
@@ -26,7 +27,7 @@ jobs:
         if: ${{ env.ACT }}
         run: echo /runnertmp/externals/node16/bin/ >> $GITHUB_PATH
       - name: Checkout the repository
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7
       - name: Get bot users
         uses: aws-actions/aws-secretsmanager-get-secrets@4e95aaf6ba8028772f5384971d4fedccfaab8621 #v2.0.6
         with:
@@ -34,7 +35,7 @@ jobs:
             CLOUDERA_BOT_USERS,${{ vars.CLOUDERA_BOT_USERS_SECRET_NAME }} 
       - name: Build commands
         id: parse_json
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 #v9
         with:
           script: |
           
@@ -69,7 +70,7 @@ jobs:
             });
             res = {
                 "commands" : command_sequence,
-                "vcluster" : "${{ inputs.vcluster-endpoint }}",
+                "vcluster" : "${{ vars[format('VCLUSTER_ENDPOINT_{0}', inputs.virtual-env)] }}",
                 "base_dir" : config.base_dir,
                 "cde_acces_keys" : acces_keys
             }
@@ -93,7 +94,7 @@ jobs:
         if: ${{ env.ACT }}
         run: echo /runnertmp/externals/node16/bin/ >> $GITHUB_PATH
       - name: Checkout the repository
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7
       - name: Setup CDE CLI
         uses: pagopa/pdnd-github-actions/setup-cde-cli@82eed1f3ff421aed8de777b7cb3f1bfb0a4a2475
         with:
@@ -102,7 +103,7 @@ jobs:
             private_key: ${{  fromJson(needs.parse-config.outputs.parsed_config).cde_acces_keys.private_key }}
             codeartifact_domain: ${{ vars.CODEARTIFACT_DOMAIN }}
             codeartifact_repository: ${{ vars.CODEARTIFACT_REPOSITORY }}
-            vcluster_endpoint:  ${{ inputs.vcluster-endpoint }}
+            vcluster_endpoint:  ${{ vars[format('VCLUSTER_ENDPOINT_{0}', inputs.virtual-env)] }}
       - name: Run commands
         working-directory: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
         run: |
