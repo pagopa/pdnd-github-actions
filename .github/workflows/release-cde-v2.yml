@@ -59,7 +59,7 @@ jobs:
             console.log("modified since last release :")
             console.log(mod_files);
 
-            let config_dir = ".github/workflows/config/${{inputs.virtual-env}}"
+            let config_dir = ".github/workflows/config/${{ inputs.environment }}/${{inputs.virtual-env}}"
             const config = fs.readdirSync(config_dir);
 
             function computeConf(files){
@@ -80,7 +80,7 @@ jobs:
                       }
                   })
                   //conf changed
-                  const regex = /^\.github\/workflows\/config\/${{inputs.virtual-env}}\/(.+)\.json$/;
+                  const regex = /^\.github\/workflows\/config\/${{ inputs.environment }}\/${{inputs.virtual-env}}\/(.+)\.json$/;
                   const match = path.match(regex);
                   if (match) {
                     let fileContent = fs.readFileSync(path, 'utf-8');
