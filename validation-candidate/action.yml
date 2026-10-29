@@ -1,0 +1,94 @@
+name: Validation candidate
+description: Verify candidate provenance, promotion policy and branch synchronization
+inputs:
+  run-reference:
+    default: VAL-Run
+    description: PR body field containing the approved workflow run ID
+  base-branch:
+    default: "main"
+    description: Destination branch for promotion and source for synchronization
+  validation-branch:
+    default: "validation"
+    description: Branch containing the validation candidate
+  hotfix-prefix:
+    default: "hotfix/"
+    description: Allowed hotfix branch prefix; empty disables hotfixes
+  approval-environment:
+    default: "val-approval"
+    description: Environment requiring functional approval
+  state-environment:
+    default: "val-state"
+    description: Deployment environment recording the currently applied candidate
+  source-workflow:
+    default: ".github/workflows/deploy-ms-validation.yml"
+    description: Expected caller workflow path for candidate provenance
+  artifact-name:
+    default: "val-candidate"
+    description: Candidate artifact name
+  status-context:
+    default: "validation/promotion-policy"
+    description: Required commit status name
+  release-bot-login:
+    default: ""
+    description: Authorized author for release metadata PRs; empty disables the exception
+  release-branch-prefix:
+    default: "release-please--"
+    description: Allowed release automation branch prefix
+  release-files:
+    default: "[\"CHANGELOG.md\",\"version.txt\",\".release-please-manifest.json\",\".k8s/helm/Chart.yaml\",\".k8s/helm/env-values/prod.yaml\"]"
+    description: JSON array of exact paths allowed in release metadata PRs
+  mode:
+    required: true
+    description: candidate, record, approve, policy, release or sync
+  candidate-file:
+    default: ''
+    description: Candidate manifest path (record mode only)
+  deployment-state:
+    default: success
+    description: in_progress before Helm, success after Helm (record mode only)
+  run-id:
+    default: ''
+    description: Successful VAL workflow run to resolve
+  token:
+    required: true
+    description: Token scoped to the calling repository
+outputs:
+  digest:
+    value: ${{ steps.policy.outputs.digest }}
+    description: Validated image digest
+  source-sha:
+    value: ${{ steps.policy.outputs.source-sha }}
+    description: Validated source SHA
+  run-id:
+    value: ${{ steps.policy.outputs.run-id }}
+    description: Validated workflow run
+runs:
+  using: composite
+  steps:
+    - id: policy
+      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+      env:
+        BASE_BRANCH: ${{ inputs.base-branch }}
+        VALIDATION_BRANCH: ${{ inputs.validation-branch }}
+        HOTFIX_PREFIX: ${{ inputs.hotfix-prefix }}
+        APPROVAL_ENVIRONMENT: ${{ inputs.approval-environment }}
+        STATE_ENVIRONMENT: ${{ inputs.state-environment }}
+        SOURCE_WORKFLOW: ${{ inputs.source-workflow }}
+        ARTIFACT_NAME: ${{ inputs.artifact-name }}
+        STATUS_CONTEXT: ${{ inputs.status-context }}
+        RELEASE_BOT_LOGIN: ${{ inputs.release-bot-login }}
+        RELEASE_BRANCH_PREFIX: ${{ inputs.release-branch-prefix }}
+        RELEASE_FILES: ${{ inputs.release-files }}
+        POLICY_MODE: ${{ inputs.mode }}
+        RUN_REFERENCE: ${{ inputs.run-reference }}
+        CANDIDATE_RUN_ID: ${{ inputs.run-id }}
+        CANDIDATE_FILE: ${{ inputs.candidate-file }}
+        DEPLOYMENT_STATE: ${{ inputs.deployment-state }}
+        POLICY_ACTION_PATH: ${{ github.action_path }}
+        PROD_ACCOUNT_ID: ${{ vars.PROD_AWS_ACCOUNT_ID }}
+        AWS_REGION: ${{ vars.AWS_REGION }}
+      with:
+        github-token: ${{ inputs.token }}
+        script: |
+          const policy = require(`${process.env.POLICY_ACTION_PATH}/policy.cjs`);
+          await policy.run({ github, context, core });

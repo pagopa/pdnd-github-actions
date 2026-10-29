@@ -1,0 +1,163 @@
+name: VAL | Restore approved candidate
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub deployment environment
+        type: string
+        default: "val"
+      environment-values:
+        description: File stem under .k8s/helm/env-values
+        type: string
+        default: "val"
+      validation-branch:
+        description: Branch containing the candidate
+        type: string
+        default: "validation"
+      base-branch:
+        description: Branch candidates must include before approval
+        type: string
+        default: "main"
+      approval-environment:
+        description: Environment requiring functional approval
+        type: string
+        default: "val-approval"
+      state-environment:
+        description: Deployment ledger shared by deploy and rollback
+        type: string
+        default: "val-state"
+      artifact-name:
+        description: Name of the archived candidate
+        type: string
+        default: "val-candidate"
+      source-workflow:
+        description: Expected caller workflow path
+        type: string
+        default: ".github/workflows/deploy-ms-validation.yml"
+      hotfix-prefix:
+        description: Allowed hotfix branch prefix; empty disables hotfixes
+        type: string
+        default: "hotfix/"
+      expected-cluster:
+        description: Expected EKS cluster; validated against environment configuration
+        type: string
+        required: true
+      timeout:
+        description: Helm deployment timeout
+        type: string
+        default: "20m"
+      smoke-test-timeout:
+        description: Helm test timeout
+        type: string
+        default: "5m"
+      codebuild-runner:
+        type: string
+        required: true
+      run-id:
+        type: string
+        required: true
+      reason:
+        type: string
+        required: true
+permissions:
+  contents: read
+  actions: read
+  deployments: write
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check invocation
+        env:
+          REF: ${{ github.ref }}
+          VALIDATION_BRANCH: ${{ inputs.validation-branch }}
+          HOTFIX_PREFIX: ${{ inputs.hotfix-prefix }}
+          EVENT: ${{ github.event_name }}
+          RUNNER: ${{ inputs.codebuild-runner }}
+          REASON: ${{ inputs.reason }}
+        run: |
+          set -euo pipefail
+          [[ "$REF" == "refs/heads/$VALIDATION_BRANCH" && "$EVENT" == workflow_dispatch ]]
+          [[ -n "$RUNNER" && -n "$REASON" ]]
+      - uses: pagopa/pdnd-github-actions/validation-candidate@DLD-1569_new-val-cicd-prossima
+        with:
+          base-branch: ${{ inputs.base-branch }}
+          validation-branch: ${{ inputs.validation-branch }}
+          hotfix-prefix: ${{ inputs.hotfix-prefix }}
+          approval-environment: ${{ inputs.approval-environment }}
+          state-environment: ${{ inputs.state-environment }}
+          artifact-name: ${{ inputs.artifact-name }}
+          source-workflow: ${{ inputs.source-workflow }}
+          mode: candidate
+          run-id: ${{ inputs.run-id }}
+          token: ${{ github.token }}
+  rollback:
+    env:
+      VALUES_NAME: ${{ inputs.environment-values }}
+      HELM_TIMEOUT: ${{ inputs.timeout }}
+      SMOKE_TEST_TIMEOUT: ${{ inputs.smoke-test-timeout }}
+    needs: verify
+    environment: ${{ inputs.environment }}
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+    concurrency:
+      group: microservice-deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ runner.temp }}/val-rollback
+          run-id: ${{ inputs.run-id }}
+          github-token: ${{ github.token }}
+      - name: Mark VAL deployment in progress
+        uses: pagopa/pdnd-github-actions/validation-candidate@DLD-1569_new-val-cicd-prossima
+        with:
+          base-branch: ${{ inputs.base-branch }}
+          validation-branch: ${{ inputs.validation-branch }}
+          hotfix-prefix: ${{ inputs.hotfix-prefix }}
+          approval-environment: ${{ inputs.approval-environment }}
+          state-environment: ${{ inputs.state-environment }}
+          artifact-name: ${{ inputs.artifact-name }}
+          source-workflow: ${{ inputs.source-workflow }}
+          mode: record
+          deployment-state: in_progress
+          candidate-file: ${{ runner.temp }}/val-rollback/candidate.json
+          token: ${{ github.token }}
+      - name: Restore chart and values from the approved deployment
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          CLUSTER: ${{ vars.EKS_CLUSTER }}
+          EXPECTED_CLUSTER: ${{ inputs.expected-cluster }}
+          DEPLOY_ENVIRONMENT: ${{ vars.DEPLOY_ENVIRONMENT }}
+          REASON: ${{ inputs.reason }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_ENVIRONMENT" == "$VALUES_NAME" && -n "$CLUSTER" && "$CLUSTER" == "$EXPECTED_CLUSTER" ]]
+          cd "$RUNNER_TEMP/val-rollback"
+          checksum=$(jq -r '.chart_sha256' candidate.json)
+          [[ "$checksum" =~ ^[a-f0-9]{64}$ ]]
+          echo "$checksum  val-chart.tgz" | sha256sum --check
+          # Extract only the environment values; do not execute anything from the artifact.
+          tar -xOf val-chart.tgz "${GITHUB_REPOSITORY#*/}/env-values/$VALUES_NAME.yaml" > val.yaml
+          namespace=$(jq -r '.namespace' candidate.json)
+          aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER"
+          helm upgrade --install "${GITHUB_REPOSITORY#*/}" val-chart.tgz -n "$namespace" -f val.yaml --atomic --timeout "$HELM_TIMEOUT"
+          { echo '### VAL rollback'; echo "$REASON"; echo '```json'; cat candidate.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Record actual VAL state
+        uses: pagopa/pdnd-github-actions/validation-candidate@DLD-1569_new-val-cicd-prossima
+        with:
+          base-branch: ${{ inputs.base-branch }}
+          validation-branch: ${{ inputs.validation-branch }}
+          hotfix-prefix: ${{ inputs.hotfix-prefix }}
+          approval-environment: ${{ inputs.approval-environment }}
+          state-environment: ${{ inputs.state-environment }}
+          artifact-name: ${{ inputs.artifact-name }}
+          source-workflow: ${{ inputs.source-workflow }}
+          mode: record
+          candidate-file: ${{ runner.temp }}/val-rollback/candidate.json
+          token: ${{ github.token }}
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          namespace=$(jq -r '.namespace' "$RUNNER_TEMP/val-rollback/candidate.json")
+          helm test "${GITHUB_REPOSITORY#*/}" -n "$namespace" --logs --timeout "$SMOKE_TEST_TIMEOUT"

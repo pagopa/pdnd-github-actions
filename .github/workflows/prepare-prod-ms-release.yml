@@ -17,6 +17,16 @@ on:
         default: ".image.digest"
         required: false
         type: string
+      validated-image-digest:
+        description: Optional approved VAL digest in PROD ECR; empty preserves legacy DEV promotion
+        default: ""
+        required: false
+        type: string
+      validated-source-sha:
+        description: Source SHA associated with the approved digest
+        default: ""
+        required: false
+        type: string
       skip-promote:
         description: "Set to true to skip the image promotion and Helm update steps."
         default: false
@@ -44,10 +54,25 @@ jobs:
         with:
           ref: ${{ github.base_ref }}
           fetch-depth: 200
+      - name: Check validated promotion inputs
+        env:
+          DIGEST: ${{ inputs.validated-image-digest }}
+          SOURCE_SHA: ${{ inputs.validated-source-sha }}
+          UPDATE_VAL: ${{ inputs.update-validation-values }}
+          SKIP: ${{ inputs.skip-promote }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$DIGEST" || -n "$SOURCE_SHA" ]]; then
+            [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ && "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+            [[ "$UPDATE_VAL" == false && "$SKIP" == false ]]
+            [[ "$(git rev-parse 'HEAD^{tree}')" == "$(git rev-parse "$SOURCE_SHA^{tree}")" ]]
+          fi
       - name: Release-Please
         id: release_please
         uses: googleapis/release-please-action@7987652d64b4581673a76e33ad5e98e3dd56832f # v4.1.3
         with:
+          # PAT events trigger the required PR checks in the validated flow.
+          token: ${{ inputs.validated-image-digest != '' && secrets.PAT_BOT || github.token }}
           skip-github-release: false
           skip-github-pull-request: false
       - name: Get Release PR Number
@@ -84,7 +109,7 @@ jobs:
 
     steps:
       - name: Find merged PR
-        if: inputs.skip-promote == false
+        if: inputs.skip-promote == false && inputs.validated-image-digest == ''
         id: find_pr
         uses: yu-iskw/merged-pr-info-action@286f6f13d310569fb9a0036d2f7731a7b33e942a # v1.0.2
         with:
@@ -93,13 +118,24 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           ref: ${{ needs.prepare-release.outputs.release_pr_head }}
+          token: ${{ inputs.validated-image-digest != '' && secrets.PAT_BOT || github.token }}
           fetch-depth: 0
 
-      - name: Login to DEV ECR
+      - name: Verify release only changes permitted metadata
+        if: inputs.validated-image-digest != ''
+        env:
+          SOURCE_SHA: ${{ inputs.validated-source-sha }}
+        run: |
+          set -euo pipefail
+          git diff --exit-code "$SOURCE_SHA" HEAD -- . \
+            ':!CHANGELOG.md' ':!version.txt' ':!.release-please-manifest.json' \
+            ':!.k8s/helm/Chart.yaml' ':!.k8s/helm/env-values/prod.yaml'
+
+      - name: Login to source ECR
         if: inputs.skip-promote == false
         uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076  # v2
         with:
-          registries: ${{ vars.DEV_AWS_ACCOUNT_ID }}
+          registries: ${{ inputs.validated-image-digest != '' && vars.PROD_AWS_ACCOUNT_ID || vars.DEV_AWS_ACCOUNT_ID }}
 
       - name: Get Release Version
         if: inputs.skip-promote == false
@@ -108,7 +144,7 @@ jobs:
           version=$(jq -r 'to_entries[0].value' .release-please-manifest.json)
           echo "release_version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Pull image from DEV and tag for PROD
+      - name: Pull source image and tag for PROD
         if: inputs.skip-promote == false
         id: promote_image
         env:
@@ -116,15 +152,21 @@ jobs:
           PROD_ECR_URI: "${{ vars.PROD_AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
           REPOSITORY: ${{ inputs.repository-name }}
           SOURCE_IMAGE_TAG: "pr-${{ steps.find_pr.outputs.pull-request-number }}"
+          VALIDATED_DIGEST: ${{ inputs.validated-image-digest }}
           PROD_IMAGE_TAG: "${{ steps.release_version.outputs.release_version }}"
         run: |
           set -euo pipefail
-          echo "Pulling image from DEV ECR: $SOURCE_IMAGE_TAG..."
+          source_image="$DEV_ECR_URI/$REPOSITORY:$SOURCE_IMAGE_TAG"
+          if [[ -n "$VALIDATED_DIGEST" ]]; then
+            source_image="$PROD_ECR_URI/$REPOSITORY@$VALIDATED_DIGEST"
+          fi
+          pulled=false
           for i in {1..3}; do
-            docker pull $DEV_ECR_URI/$REPOSITORY:$SOURCE_IMAGE_TAG && break || sleep 10
+            if docker pull "$source_image"; then pulled=true; break; fi
+            sleep 10
           done
-          echo "Tagging image for PROD as $PROD_IMAGE_TAG"
-          docker tag $DEV_ECR_URI/$REPOSITORY:$SOURCE_IMAGE_TAG $PROD_ECR_URI/$REPOSITORY:$PROD_IMAGE_TAG
+          [[ "$pulled" == true ]]
+          docker tag "$source_image" "$PROD_ECR_URI/$REPOSITORY:$PROD_IMAGE_TAG"
           echo "prod_tag=$PROD_IMAGE_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Create AWS ECR Docker Registry
@@ -154,18 +196,36 @@ jobs:
           PROD_ECR_URI: "${{ vars.PROD_AWS_ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
           REPOSITORY: ${{ inputs.repository-name }}
           PROD_TAG: ${{ steps.promote_image.outputs.prod_tag }}
+          VALIDATED_DIGEST: ${{ inputs.validated-image-digest }}
         run: |
           set -euo pipefail
-          echo "Pushing image to PROD..."
+          pushed=false
           for i in {1..3}; do
-            digest=$(docker push $PROD_ECR_URI/$REPOSITORY:$PROD_TAG | grep 'digest:' | awk '{print $3}') && break || sleep 10
+            if docker push "$PROD_ECR_URI/$REPOSITORY:$PROD_TAG" > "$RUNNER_TEMP/prod-image-push.log" 2>&1; then
+              pushed=true
+              break
+            fi
+            cat "$RUNNER_TEMP/prod-image-push.log"
+            sleep 10
           done
+          [[ "$pushed" == true ]]
+          cat "$RUNNER_TEMP/prod-image-push.log"
+          if [[ -n "$VALIDATED_DIGEST" ]]; then
+            digest=$(aws ecr describe-images --repository-name "$REPOSITORY" --image-ids "imageTag=$PROD_TAG" --query 'imageDetails[0].imageDigest' --output text)
+            [[ "$digest" == "$VALIDATED_DIGEST" ]]
+          else
+            # Preserve the legacy path without requiring additional ECR permissions.
+            digest=$(awk '/digest:/ {print $3}' "$RUNNER_TEMP/prod-image-push.log")
+          fi
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
           echo "prod_digest=$digest" >> "$GITHUB_OUTPUT"
 
       - name: Update Helm values
         if: inputs.skip-promote == false
         run: |
-          yq e "${{ inputs.docker-image-to-update }} = \"pr-${{ steps.find_pr.outputs.pull-request-number }}\"" -i .k8s/helm/env-values/dev.yaml
+          if [[ -z "${{ inputs.validated-image-digest }}" ]]; then
+            yq e "${{ inputs.docker-image-to-update }} = \"pr-${{ steps.find_pr.outputs.pull-request-number }}\"" -i .k8s/helm/env-values/dev.yaml
+          fi
           yq e "${{ inputs.docker-image-to-update }} = \"${{ steps.push_image.outputs.prod_digest }}\"" -i .k8s/helm/env-values/prod.yaml
           if [[ "${{ inputs.update-validation-values }}" == "true" ]]; then
             yq e "${{ inputs.docker-image-to-update }} = \"${{ steps.push_image.outputs.prod_digest }}\"" -i .k8s/helm/env-values/val.yaml
@@ -218,7 +278,8 @@ jobs:
         uses: hmarr/auto-approve-action@f0939ea97e9205ef24d872e76833fa908a770363 # v4
         with:
           pull-request-number: ${{ needs.prepare-release.outputs.release_pr_number }}
-          github-token: ${{ secrets.PAT_BOT }}
+          # The approver must differ from the PAT-backed author of the release PR.
+          github-token: ${{ inputs.validated-image-digest != '' && github.token || secrets.PAT_BOT }}
       - name: Merge Release PR
         id: merge_pr
         uses: pascalgn/automerge-action@58724c982461efbb7865b3762d7bff0d4756f57a # v0.16.2
@@ -233,6 +294,8 @@ jobs:
         id: release_please
         uses: googleapis/release-please-action@7987652d64b4581673a76e33ad5e98e3dd56832f # v4.1.3
         with:
+          # PAT events trigger the required PR checks in the validated flow.
+          token: ${{ inputs.validated-image-digest != '' && secrets.PAT_BOT || github.token }}
           skip-github-release: false
           skip-github-pull-request: false
       - name: Label Pull Request

@@ -9,3 +9,9 @@ Ensure adding `pdnd-pagopa-github-bot` as admin of repos using common actions an
 - [Self hosted runners](https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners)
 - [Actions](https://docs.github.com/en/actions)
 - [Reusing workflows](https://docs.github.com/en/actions/using-workflows/reusing-workflows)
+
+## Microservice validation
+
+[Validation deployment and rollback](.github/workflows/deploy-ms-validation.md)
+use generic reusable workflows and the `validation-candidate` action.
+Application repositories supply their own branch, environment and promotion policy.

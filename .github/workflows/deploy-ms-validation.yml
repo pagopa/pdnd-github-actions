@@ -1,0 +1,223 @@
+name: VAL | Build, deploy and approve candidate
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub deployment environment
+        type: string
+        default: "val"
+      environment-values:
+        description: File stem under .k8s/helm/env-values
+        type: string
+        default: "val"
+      validation-branch:
+        description: Branch containing the candidate
+        type: string
+        default: "validation"
+      base-branch:
+        description: Branch candidates must include before approval
+        type: string
+        default: "main"
+      approval-environment:
+        description: Environment requiring functional approval
+        type: string
+        default: "val-approval"
+      state-environment:
+        description: Deployment ledger shared by deploy and rollback
+        type: string
+        default: "val-state"
+      artifact-name:
+        description: Name of the archived candidate
+        type: string
+        default: "val-candidate"
+      source-workflow:
+        description: Expected caller workflow path
+        type: string
+        default: ".github/workflows/deploy-ms-validation.yml"
+      hotfix-prefix:
+        description: Allowed hotfix branch prefix; empty disables hotfixes
+        type: string
+        default: "hotfix/"
+      expected-cluster:
+        description: Expected EKS cluster; validated against environment configuration
+        type: string
+        required: true
+      timeout:
+        description: Helm deployment timeout
+        type: string
+        default: "20m"
+      smoke-test-timeout:
+        description: Helm test timeout
+        type: string
+        default: "5m"
+      codebuild-runner:
+        type: string
+        required: true
+      ticket:
+        type: string
+        required: true
+      companion:
+        description: Optional versions of companion services included in the test session
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  actions: read
+  deployments: write
+
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check invocation
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          VALIDATION_BRANCH: ${{ inputs.validation-branch }}
+          HOTFIX_PREFIX: ${{ inputs.hotfix-prefix }}
+          ATTEMPT: ${{ github.run_attempt }}
+          RUNNER: ${{ inputs.codebuild-runner }}
+          TICKET: ${{ inputs.ticket }}
+        run: |
+          set -euo pipefail
+          [[ "$EVENT" == workflow_dispatch && "$ATTEMPT" == 1 ]]
+          [[ "$REF" == "refs/heads/$VALIDATION_BRANCH" || ( -n "$HOTFIX_PREFIX" && "$REF" == "refs/heads/$HOTFIX_PREFIX"* && "$REF" != "refs/heads/$HOTFIX_PREFIX" ) ]]
+          [[ -n "$RUNNER" && -n "$TICKET" ]]
+
+  deploy:
+    env:
+      VALUES_NAME: ${{ inputs.environment-values }}
+      HELM_TIMEOUT: ${{ inputs.timeout }}
+      SMOKE_TEST_TIMEOUT: ${{ inputs.smoke-test-timeout }}
+    needs: preflight
+    environment: ${{ inputs.environment }}
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+    concurrency:
+      group: microservice-deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate VAL configuration
+        env:
+          DEPLOY_ENVIRONMENT: ${{ vars.DEPLOY_ENVIRONMENT }}
+          ACCOUNT: ${{ vars.PROD_AWS_ACCOUNT_ID }}
+          REGION: ${{ vars.AWS_REGION }}
+          CLUSTER: ${{ vars.EKS_CLUSTER }}
+          EXPECTED_CLUSTER: ${{ inputs.expected-cluster }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_ENVIRONMENT" == "$VALUES_NAME" && -n "$CLUSTER" && "$CLUSTER" == "$EXPECTED_CLUSTER" ]]
+          [[ "$ACCOUNT" =~ ^[0-9]{12}$ && -n "$REGION" ]]
+          [[ "$VALUES_NAME" =~ ^[a-zA-Z0-9_-]+$ ]]
+          image=$(yq -r '.image.repository' ".k8s/helm/env-values/$VALUES_NAME.yaml")
+          [[ "$image" == "$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/${GITHUB_REPOSITORY#*/}" ]]
+      - uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2
+        with:
+          registries: ${{ vars.PROD_AWS_ACCOUNT_ID }}
+      - name: Build immutable candidate and snapshot chart
+        env:
+          ACCOUNT: ${{ vars.PROD_AWS_ACCOUNT_ID }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          TICKET: ${{ inputs.ticket }}
+          COMPANION: ${{ inputs.companion }}
+        run: |
+          set -euo pipefail
+          image="$ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/${GITHUB_REPOSITORY#*/}"
+          tag="val-$GITHUB_SHA-$GITHUB_RUN_ID"
+          docker build --build-arg DOCKER_REGISTRY_URI="$ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com" -t "$image:$tag" .
+          docker push "$image:$tag"
+          digest=$(aws ecr describe-images --repository-name "${GITHUB_REPOSITORY#*/}" --image-ids "imageTag=$tag" --query 'imageDetails[0].imageDigest' --output text)
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
+          mkdir -p "$RUNNER_TEMP/val-candidate"
+          export CANDIDATE_DIGEST="$digest"
+          yq -i '.image.digest = strenv(CANDIDATE_DIGEST)' ".k8s/helm/env-values/$VALUES_NAME.yaml"
+          helm lint .k8s/helm -f ".k8s/helm/env-values/$VALUES_NAME.yaml"
+          helm package .k8s/helm --destination "$RUNNER_TEMP/val-candidate"
+          mv "$RUNNER_TEMP/val-candidate/"*.tgz "$RUNNER_TEMP/val-candidate/val-chart.tgz"
+          chart_sha=$(sha256sum "$RUNNER_TEMP/val-candidate/val-chart.tgz" | cut -d ' ' -f1)
+          tree=$(git rev-parse 'HEAD^{tree}')
+          namespace=$(yq -r '.namespace' .k8s/helm/values.yaml)
+          jq -n --arg sha "$GITHUB_SHA" --arg tree "$tree" --arg repository "$GITHUB_REPOSITORY" \
+            --arg run_id "$GITHUB_RUN_ID" --arg branch "$GITHUB_REF_NAME" --arg digest "$digest" \
+            --arg image "$image" --arg ticket "$TICKET" --arg companion "$COMPANION" \
+            --arg chart_sha256 "$chart_sha" --arg namespace "$namespace" \
+            '{schema:1, repository:$repository, sha:$sha, tree:$tree, run_id:$run_id, branch:$branch,
+              digest:$digest, image:$image, ticket:$ticket, companion:$companion,
+              chart_sha256:$chart_sha256, namespace:$namespace}' > "$RUNNER_TEMP/val-candidate/candidate.json"
+      - name: Mark VAL deployment in progress
+        uses: pagopa/pdnd-github-actions/validation-candidate@DLD-1569_new-val-cicd-prossima
+        with:
+          base-branch: ${{ inputs.base-branch }}
+          validation-branch: ${{ inputs.validation-branch }}
+          hotfix-prefix: ${{ inputs.hotfix-prefix }}
+          approval-environment: ${{ inputs.approval-environment }}
+          state-environment: ${{ inputs.state-environment }}
+          artifact-name: ${{ inputs.artifact-name }}
+          source-workflow: ${{ inputs.source-workflow }}
+          mode: record
+          deployment-state: in_progress
+          candidate-file: ${{ runner.temp }}/val-candidate/candidate.json
+          token: ${{ github.token }}
+      - name: Deploy candidate
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          CLUSTER: ${{ vars.EKS_CLUSTER }}
+        run: |
+          set -euo pipefail
+          namespace=$(jq -r '.namespace' "$RUNNER_TEMP/val-candidate/candidate.json")
+          aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER"
+          helm upgrade --install "${GITHUB_REPOSITORY#*/}" "$RUNNER_TEMP/val-candidate/val-chart.tgz" \
+            -n "$namespace" -f .k8s/helm/values.yaml -f ".k8s/helm/env-values/$VALUES_NAME.yaml" --atomic --timeout "$HELM_TIMEOUT"
+      - name: Record actual VAL state
+        uses: pagopa/pdnd-github-actions/validation-candidate@DLD-1569_new-val-cicd-prossima
+        with:
+          base-branch: ${{ inputs.base-branch }}
+          validation-branch: ${{ inputs.validation-branch }}
+          hotfix-prefix: ${{ inputs.hotfix-prefix }}
+          approval-environment: ${{ inputs.approval-environment }}
+          state-environment: ${{ inputs.state-environment }}
+          artifact-name: ${{ inputs.artifact-name }}
+          source-workflow: ${{ inputs.source-workflow }}
+          mode: record
+          candidate-file: ${{ runner.temp }}/val-candidate/candidate.json
+          token: ${{ github.token }}
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          namespace=$(jq -r '.namespace' "$RUNNER_TEMP/val-candidate/candidate.json")
+          helm test "${GITHUB_REPOSITORY#*/}" -n "$namespace" --logs --timeout "$SMOKE_TEST_TIMEOUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ runner.temp }}/val-candidate/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Record candidate
+        run: |
+          { echo '### VAL candidate — functional approval required'; echo '```json'; cat "$RUNNER_TEMP/val-candidate/candidate.json"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+  approve:
+    needs: deploy
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      deployments: read
+    # Required reviewers must approve only AFTER performing functional tests in VAL.
+    environment: ${{ inputs.approval-environment }}
+    steps:
+      - uses: pagopa/pdnd-github-actions/validation-candidate@DLD-1569_new-val-cicd-prossima
+        with:
+          base-branch: ${{ inputs.base-branch }}
+          validation-branch: ${{ inputs.validation-branch }}
+          hotfix-prefix: ${{ inputs.hotfix-prefix }}
+          approval-environment: ${{ inputs.approval-environment }}
+          state-environment: ${{ inputs.state-environment }}
+          artifact-name: ${{ inputs.artifact-name }}
+          source-workflow: ${{ inputs.source-workflow }}
+          mode: approve
+          token: ${{ github.token }}
