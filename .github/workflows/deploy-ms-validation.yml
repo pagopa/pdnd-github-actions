@@ -115,6 +115,34 @@ jobs:
           [[ "$VALUES_NAME" =~ ^[a-zA-Z0-9_-]+$ ]]
           image=$(yq -r '.image.repository' ".k8s/helm/env-values/$VALUES_NAME.yaml")
           [[ "$image" == "$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/${GITHUB_REPOSITORY#*/}" ]]
+      - name: Check candidate image repository
+        id: candidate_repository
+        env:
+          ACCOUNT: ${{ vars.PROD_AWS_ACCOUNT_ID }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: |
+          set -euo pipefail
+          current_account=$(aws sts get-caller-identity --query Account --output text)
+          if [[ "$current_account" != "$ACCOUNT" ]]; then
+            echo "Runner AWS account does not match the candidate registry account." >&2
+            exit 1
+          fi
+          if aws ecr describe-repositories --registry-id "$ACCOUNT" \
+              --repository-names "${GITHUB_REPOSITORY#*/}" >/dev/null 2>"$RUNNER_TEMP/ecr-check.err"; then
+            echo "missing=false" >> "$GITHUB_OUTPUT"
+          elif grep -q 'RepositoryNotFoundException' "$RUNNER_TEMP/ecr-check.err"; then
+            echo "missing=true" >> "$GITHUB_OUTPUT"
+          else
+            cat "$RUNNER_TEMP/ecr-check.err" >&2
+            exit 1
+          fi
+      - name: Create candidate image repository
+        if: steps.candidate_repository.outputs.missing == 'true'
+        uses: pagopa/pdnd-github-actions/create-ecr-repository@9b197047943123c2d716acd6953ce5c20e1d6807
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        with:
+          repositoryName: ${{ github.event.repository.name }}
       - name: Start Docker daemon if needed
         run: |
           set -euo pipefail
