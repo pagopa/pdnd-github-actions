@@ -151,6 +151,8 @@ jobs:
       - name: Mark VAL deployment in progress
         uses: pagopa/pdnd-github-actions/validation-candidate@DLD-1569_new-val-cicd-prossima
         with:
+          prod-account-id: ${{ vars.PROD_AWS_ACCOUNT_ID }}
+          aws-region: ${{ vars.AWS_REGION }}
           base-branch: ${{ inputs.base-branch }}
           validation-branch: ${{ inputs.validation-branch }}
           hotfix-prefix: ${{ inputs.hotfix-prefix }}
@@ -175,6 +177,8 @@ jobs:
       - name: Record actual VAL state
         uses: pagopa/pdnd-github-actions/validation-candidate@DLD-1569_new-val-cicd-prossima
         with:
+          prod-account-id: ${{ vars.PROD_AWS_ACCOUNT_ID }}
+          aws-region: ${{ vars.AWS_REGION }}
           base-branch: ${{ inputs.base-branch }}
           validation-branch: ${{ inputs.validation-branch }}
           hotfix-prefix: ${{ inputs.hotfix-prefix }}
@@ -212,6 +216,8 @@ jobs:
     steps:
       - uses: pagopa/pdnd-github-actions/validation-candidate@DLD-1569_new-val-cicd-prossima
         with:
+          prod-account-id: ${{ vars.PROD_AWS_ACCOUNT_ID }}
+          aws-region: ${{ vars.AWS_REGION }}
           base-branch: ${{ inputs.base-branch }}
           validation-branch: ${{ inputs.validation-branch }}
           hotfix-prefix: ${{ inputs.hotfix-prefix }}

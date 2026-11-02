@@ -1,6 +1,12 @@
 name: Validation candidate
 description: Verify candidate provenance, promotion policy and branch synchronization
 inputs:
+  prod-account-id:
+    description: AWS account containing the candidate image
+    required: true
+  aws-region:
+    description: AWS region containing the candidate image
+    required: true
   run-reference:
     default: VAL-Run
     description: PR body field containing the approved workflow run ID
@@ -85,8 +91,8 @@ runs:
         CANDIDATE_FILE: ${{ inputs.candidate-file }}
         DEPLOYMENT_STATE: ${{ inputs.deployment-state }}
         POLICY_ACTION_PATH: ${{ github.action_path }}
-        PROD_ACCOUNT_ID: ${{ vars.PROD_AWS_ACCOUNT_ID }}
-        AWS_REGION: ${{ vars.AWS_REGION }}
+        PROD_ACCOUNT_ID: ${{ inputs.prod-account-id }}
+        AWS_REGION: ${{ inputs.aws-region }}
       with:
         github-token: ${{ inputs.token }}
         script: |
