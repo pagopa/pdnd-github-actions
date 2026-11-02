@@ -115,6 +115,31 @@ jobs:
           [[ "$VALUES_NAME" =~ ^[a-zA-Z0-9_-]+$ ]]
           image=$(yq -r '.image.repository' ".k8s/helm/env-values/$VALUES_NAME.yaml")
           [[ "$image" == "$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/${GITHUB_REPOSITORY#*/}" ]]
+      - name: Start Docker daemon if needed
+        run: |
+          set -euo pipefail
+          if docker info >/dev/null 2>&1; then
+            exit 0
+          fi
+          if ! command -v dockerd >/dev/null 2>&1; then
+            echo "Docker daemon executable not found in the runner image." >&2
+            exit 1
+          fi
+          if [ "$(id -u)" -eq 0 ]; then
+            nohup dockerd --host=unix:///var/run/docker.sock >"$RUNNER_TEMP/dockerd.log" 2>&1 &
+          else
+            sudo -n true
+            sudo -n nohup "$(command -v dockerd)" --host=unix:///var/run/docker.sock >"$RUNNER_TEMP/dockerd.log" 2>&1 &
+          fi
+          for attempt in {1..30}; do
+            if docker info >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Docker daemon did not become available; runner needs access to its socket." >&2
+          cat "$RUNNER_TEMP/dockerd.log" >&2
+          exit 1
       - uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2
         with:
           registries: ${{ vars.PROD_AWS_ACCOUNT_ID }}
