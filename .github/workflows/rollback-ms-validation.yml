@@ -166,4 +166,4 @@ jobs:
         run: |
           set -euo pipefail
           namespace=$(jq -r '.namespace' "$RUNNER_TEMP/val-rollback/candidate.json")
-          helm test "${GITHUB_REPOSITORY#*/}" -n "$namespace" --logs --timeout "$SMOKE_TEST_TIMEOUT"
+          helm test "${GITHUB_REPOSITORY#*/}" -n "$namespace" --timeout "$SMOKE_TEST_TIMEOUT"
