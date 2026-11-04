@@ -16,7 +16,7 @@ on:
     inputs:
       ticket:
         type: string
-        required: true
+        required: false
 permissions:
   contents: read
   actions: read
@@ -44,7 +44,8 @@ jobs:
 consistent in all candidate verification and rollback calls.
 
 The workflow checks out the immutable event SHA, builds the service image, deploys
-it by digest, executes Helm tests, and archives the chart and candidate manifest.
+it by digest, and archives the chart and candidate manifest. Helm tests are not run;
+functional verification is performed before approval.
 A separate job requires functional approval through the configured GitHub Environment.
 A missing explicit approval, an advanced source branch/base or a superseded deployment
 rejects approval. Re-running an existing execution is rejected; dispatch a new candidate.
@@ -53,7 +54,7 @@ rejects approval. Re-running an existing execution is rejected; dispatch a new c
 | --- | --- |
 | `codebuild-runner` | Required CodeBuild runner project name |
 | `expected-cluster` | Required; must match the Environment's `EKS_CLUSTER` |
-| `ticket` | Required test session or issue reference (deploy only) |
+| `ticket` | Optional test session or issue reference (deploy only) |
 | `companion` | Optional free-text versions of companion services (deploy only) |
 | `environment` | `val` |
 | `environment-values` | `val`; selects `.k8s/helm/env-values/<value>.yaml` |
@@ -65,7 +66,7 @@ rejects approval. Re-running an existing execution is rejected; dispatch a new c
 | `artifact-name` | `val-candidate` |
 | `source-workflow` | `.github/workflows/deploy-ms-validation.yml` |
 | `timeout` | `20m` for Helm deployment |
-| `smoke-test-timeout` | `5m` for Helm tests |
+| `smoke-test-timeout` | Deprecated; accepted for compatibility and ignored |
 
 Like the existing production workflow, this implementation expects the microservice
 layout `.k8s/helm`, with a namespace in `values.yaml`, a chart named after the

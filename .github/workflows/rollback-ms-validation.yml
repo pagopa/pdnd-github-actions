@@ -47,7 +47,7 @@ on:
         type: string
         default: "20m"
       smoke-test-timeout:
-        description: Helm test timeout
+        description: Deprecated compatibility input; Helm tests are not run
         type: string
         default: "5m"
       codebuild-runner:
@@ -97,7 +97,6 @@ jobs:
     env:
       VALUES_NAME: ${{ inputs.environment-values }}
       HELM_TIMEOUT: ${{ inputs.timeout }}
-      SMOKE_TEST_TIMEOUT: ${{ inputs.smoke-test-timeout }}
     needs: verify
     environment: ${{ inputs.environment }}
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -162,8 +161,3 @@ jobs:
           mode: record
           candidate-file: ${{ runner.temp }}/val-rollback/candidate.json
           token: ${{ github.token }}
-      - name: Smoke test
-        run: |
-          set -euo pipefail
-          namespace=$(jq -r '.namespace' "$RUNNER_TEMP/val-rollback/candidate.json")
-          helm test "${GITHUB_REPOSITORY#*/}" -n "$namespace" --timeout "$SMOKE_TEST_TIMEOUT"

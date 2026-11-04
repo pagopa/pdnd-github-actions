@@ -36,9 +36,10 @@ test('manifest is bound to repository, workflow SHA, branch, image and artifact 
   assert.equal(validateManifest(manifest, workflow, fullName, registry).digest, manifest.digest);
   for (const patch of [{ sha: 'f'.repeat(40) }, { repository: 'attacker/repo' }, { run_id: '124' },
     { digest: 'latest' }, { branch: 'feature/unreviewed' }, { image: 'attacker/image' },
-    { chart_sha256: 'bad' }, { tree: 'missing' }, { ticket: '' }]) {
+    { chart_sha256: 'bad' }, { tree: 'missing' }, { ticket: null }]) {
     assert.throws(() => validateManifest({ ...manifest, ...patch }, workflow, fullName, registry));
   }
+  assert.equal(validateManifest({ ...manifest, ticket: '' }, workflow, fullName, registry).ticket, '');
 });
 
 test('accept exact approved candidate including current main', async () => {

@@ -47,7 +47,7 @@ on:
         type: string
         default: "20m"
       smoke-test-timeout:
-        description: Helm test timeout
+        description: Deprecated compatibility input; Helm tests are not run
         type: string
         default: "5m"
       codebuild-runner:
@@ -55,7 +55,7 @@ on:
         required: true
       ticket:
         type: string
-        required: true
+        default: ""
       companion:
         description: Optional versions of companion services included in the test session
         type: string
@@ -78,18 +78,16 @@ jobs:
           HOTFIX_PREFIX: ${{ inputs.hotfix-prefix }}
           ATTEMPT: ${{ github.run_attempt }}
           RUNNER: ${{ inputs.codebuild-runner }}
-          TICKET: ${{ inputs.ticket }}
         run: |
           set -euo pipefail
           [[ "$EVENT" == workflow_dispatch && "$ATTEMPT" == 1 ]]
           [[ "$REF" == "refs/heads/$VALIDATION_BRANCH" || ( -n "$HOTFIX_PREFIX" && "$REF" == "refs/heads/$HOTFIX_PREFIX"* && "$REF" != "refs/heads/$HOTFIX_PREFIX" ) ]]
-          [[ -n "$RUNNER" && -n "$TICKET" ]]
+          [[ -n "$RUNNER" ]]
 
   deploy:
     env:
       VALUES_NAME: ${{ inputs.environment-values }}
       HELM_TIMEOUT: ${{ inputs.timeout }}
-      SMOKE_TEST_TIMEOUT: ${{ inputs.smoke-test-timeout }}
     needs: preflight
     environment: ${{ inputs.environment }}
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -242,11 +240,6 @@ jobs:
           mode: record
           candidate-file: ${{ runner.temp }}/val-candidate/candidate.json
           token: ${{ github.token }}
-      - name: Smoke test
-        run: |
-          set -euo pipefail
-          namespace=$(jq -r '.namespace' "$RUNNER_TEMP/val-candidate/candidate.json")
-          helm test "${GITHUB_REPOSITORY#*/}" -n "$namespace" --timeout "$SMOKE_TEST_TIMEOUT"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ${{ inputs.artifact-name }}

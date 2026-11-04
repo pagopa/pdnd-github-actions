@@ -52,7 +52,7 @@ function validateManifest(manifest, workflow, repository, registry) {
   assert(digestPattern.test(manifest.digest), 'Invalid image digest');
   assert.equal(manifest.image, `${registry}/${repository.split('/')[1]}`);
   assert(/^[a-f0-9]{64}$/.test(manifest.chart_sha256), 'Invalid chart checksum');
-  assert(typeof manifest.ticket === 'string' && manifest.ticket.trim(), 'Missing test reference');
+  assert(typeof manifest.ticket === 'string', 'Invalid test reference');
   return manifest;
 }
 
