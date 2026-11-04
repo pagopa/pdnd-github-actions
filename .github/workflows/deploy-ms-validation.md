@@ -33,8 +33,7 @@ jobs:
       base-branch: master
       validation-branch: staging
       hotfix-prefix: emergency/
-      approval-environment: uat-review
-      state-environment: uat-state
+      status-context: my-service/promotion-policy
       artifact-name: uat-candidate
       source-workflow: .github/workflows/deploy-validation.yml
       ticket: ${{ inputs.ticket }}
@@ -46,9 +45,11 @@ consistent in all candidate verification and rollback calls.
 The workflow checks out the immutable event SHA, builds the service image, deploys
 it by digest, and archives the chart and candidate manifest. Helm tests are not run;
 functional verification is performed before approval.
-A separate job requires functional approval through the configured GitHub Environment.
-A missing explicit approval, an advanced source branch/base or a superseded deployment
-rejects approval. Re-running an existing execution is rejected; dispatch a new candidate.
+A reviewer approves the promotion pull request after testing, with `VAL-Run: <id>`
+in the review comment as well as in the PR description. The policy requires an
+authorized reviewer other than the PR author, the exact candidate commit and run,
+and a review submitted after that run completed. A superseded deployment or an
+advanced source branch/base rejects promotion. Re-running an existing execution is rejected; dispatch a new candidate.
 
 | Input | Default / requirement |
 | --- | --- |
@@ -61,8 +62,7 @@ rejects approval. Re-running an existing execution is rejected; dispatch a new c
 | `base-branch` | `main` |
 | `validation-branch` | `validation` |
 | `hotfix-prefix` | `hotfix/`; empty disables hotfix candidates |
-| `approval-environment` | `val-approval` |
-| `state-environment` | `val-state` |
+| `status-context` | `validation/promotion-policy`; status invalidated before deploy/rollback |
 | `artifact-name` | `val-candidate` |
 | `source-workflow` | `.github/workflows/deploy-ms-validation.yml` |
 | `timeout` | `20m` for Helm deployment |
@@ -86,7 +86,7 @@ the archived values are applied; current source code is not rebuilt.
 
 Deploy and rollback share `microservice-deploy-<environment>` concurrency within
 each repository. This does not serialize different repositories or provide a FIFO
-queue. `state-environment` records in-progress and successful deployments; an
+queue. The chosen deployment environment records in-progress and successful deployments; an
 incomplete deployment prevents approval until a controlled redeploy or rollback.
 Artifacts are retained for 90 days, subject to organization limits. Retain matching
 images in ECR. Rollback does not restore external secrets or database changes.
@@ -100,13 +100,12 @@ workflows and by application-side promotion/synchronization callers:
 | --- | --- |
 | `candidate` | Resolve approved artifact provenance, SHA and image digest |
 | `record` | Record `in_progress` or `success` for a candidate deployment |
-| `approve` | Verify explicit review and the currently deployed execution |
 | `policy` | Publish a required commit status on promotion PR heads |
 | `release` | Check merged content matches the approved tree and return digest/SHA |
 | `sync` | Open an idempotent PR from `base-branch` to `validation-branch` |
 
 The action accepts `base-branch`, `validation-branch`, `hotfix-prefix`,
-`approval-environment`, `state-environment`, `artifact-name` and `source-workflow`
+`deployment-environment`, `artifact-name` and `source-workflow`
 with the same defaults as the workflows. Additionally:
 
 - `token`: required repository-scoped token, with permissions appropriate to the mode.
@@ -124,7 +123,7 @@ Outputs are `digest`, `source-sha` and `run-id`. Applications pass the first two
 with `update-validation-values: false`. The legacy DEV-to-PROD promotion remains
 available when these inputs are omitted.
 
-Application callers own PR/push/workflow-run triggers and the required status
+Application callers own PR/pull-request-review/push/workflow-run triggers and the required status
 configuration. A privileged `pull_request_target` caller must never execute PR
 code; call this action at a trusted immutable revision. Configure reviewers,
 strict branch protections, workflow ownership and Environment branch restrictions.
@@ -143,6 +142,6 @@ actionlint .github/workflows/deploy-ms-validation.yml .github/workflows/rollback
 ```
 
 Tests cover the default policy and an independent configuration with different
-base/candidate branches, approval/state environments, artifact/workflow names,
+base/candidate branches, deployment environments, artifact/workflow names,
 status, run-reference and release exceptions. Runtime IAM, TLS trust stores,
 Environment protection and service health still require deployment-side verification.

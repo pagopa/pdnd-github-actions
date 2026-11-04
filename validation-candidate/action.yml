@@ -19,12 +19,9 @@ inputs:
   hotfix-prefix:
     default: "hotfix/"
     description: Allowed hotfix branch prefix; empty disables hotfixes
-  approval-environment:
-    default: "val-approval"
-    description: Environment requiring functional approval
-  state-environment:
-    default: "val-state"
-    description: Deployment environment recording the currently applied candidate
+  deployment-environment:
+    default: "val"
+    description: GitHub environment recording the currently applied candidate
   source-workflow:
     default: ".github/workflows/deploy-ms-validation.yml"
     description: Expected caller workflow path for candidate provenance
@@ -45,7 +42,7 @@ inputs:
     description: JSON array of exact paths allowed in release metadata PRs
   mode:
     required: true
-    description: candidate, record, approve, policy, release or sync
+    description: candidate, record, policy, release or sync
   candidate-file:
     default: ''
     description: Candidate manifest path (record mode only)
@@ -77,8 +74,7 @@ runs:
         BASE_BRANCH: ${{ inputs.base-branch }}
         VALIDATION_BRANCH: ${{ inputs.validation-branch }}
         HOTFIX_PREFIX: ${{ inputs.hotfix-prefix }}
-        APPROVAL_ENVIRONMENT: ${{ inputs.approval-environment }}
-        STATE_ENVIRONMENT: ${{ inputs.state-environment }}
+        DEPLOYMENT_ENVIRONMENT: ${{ inputs.deployment-environment }}
         SOURCE_WORKFLOW: ${{ inputs.source-workflow }}
         ARTIFACT_NAME: ${{ inputs.artifact-name }}
         STATUS_CONTEXT: ${{ inputs.status-context }}

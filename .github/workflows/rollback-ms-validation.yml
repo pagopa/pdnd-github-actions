@@ -18,14 +18,10 @@ on:
         description: Branch candidates must include before approval
         type: string
         default: "main"
-      approval-environment:
-        description: Environment requiring functional approval
+      status-context:
+        description: Commit status invalidated by a new deployment
         type: string
-        default: "val-approval"
-      state-environment:
-        description: Deployment ledger shared by deploy and rollback
-        type: string
-        default: "val-state"
+        default: "validation/promotion-policy"
       artifact-name:
         description: Name of the archived candidate
         type: string
@@ -63,6 +59,8 @@ permissions:
   contents: read
   actions: read
   deployments: write
+  pull-requests: read
+  statuses: write
 jobs:
   verify:
     runs-on: ubuntu-24.04
@@ -86,8 +84,8 @@ jobs:
           base-branch: ${{ inputs.base-branch }}
           validation-branch: ${{ inputs.validation-branch }}
           hotfix-prefix: ${{ inputs.hotfix-prefix }}
-          approval-environment: ${{ inputs.approval-environment }}
-          state-environment: ${{ inputs.state-environment }}
+          deployment-environment: ${{ inputs.environment }}
+          status-context: ${{ inputs.status-context }}
           artifact-name: ${{ inputs.artifact-name }}
           source-workflow: ${{ inputs.source-workflow }}
           mode: candidate
@@ -98,7 +96,9 @@ jobs:
       VALUES_NAME: ${{ inputs.environment-values }}
       HELM_TIMEOUT: ${{ inputs.timeout }}
     needs: verify
-    environment: ${{ inputs.environment }}
+    environment:
+      name: ${{ inputs.environment }}
+      deployment: false
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     concurrency:
       group: microservice-deploy-${{ inputs.environment }}
@@ -118,8 +118,8 @@ jobs:
           base-branch: ${{ inputs.base-branch }}
           validation-branch: ${{ inputs.validation-branch }}
           hotfix-prefix: ${{ inputs.hotfix-prefix }}
-          approval-environment: ${{ inputs.approval-environment }}
-          state-environment: ${{ inputs.state-environment }}
+          deployment-environment: ${{ inputs.environment }}
+          status-context: ${{ inputs.status-context }}
           artifact-name: ${{ inputs.artifact-name }}
           source-workflow: ${{ inputs.source-workflow }}
           mode: record
@@ -154,8 +154,8 @@ jobs:
           base-branch: ${{ inputs.base-branch }}
           validation-branch: ${{ inputs.validation-branch }}
           hotfix-prefix: ${{ inputs.hotfix-prefix }}
-          approval-environment: ${{ inputs.approval-environment }}
-          state-environment: ${{ inputs.state-environment }}
+          deployment-environment: ${{ inputs.environment }}
+          status-context: ${{ inputs.status-context }}
           artifact-name: ${{ inputs.artifact-name }}
           source-workflow: ${{ inputs.source-workflow }}
           mode: record

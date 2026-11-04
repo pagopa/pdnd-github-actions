@@ -18,14 +18,10 @@ on:
         description: Branch candidates must include before approval
         type: string
         default: "main"
-      approval-environment:
-        description: Environment requiring functional approval
+      status-context:
+        description: Commit status invalidated by a new deployment
         type: string
-        default: "val-approval"
-      state-environment:
-        description: Deployment ledger shared by deploy and rollback
-        type: string
-        default: "val-state"
+        default: "validation/promotion-policy"
       artifact-name:
         description: Name of the archived candidate
         type: string
@@ -65,6 +61,8 @@ permissions:
   contents: read
   actions: read
   deployments: write
+  pull-requests: read
+  statuses: write
 
 jobs:
   preflight:
@@ -89,7 +87,9 @@ jobs:
       VALUES_NAME: ${{ inputs.environment-values }}
       HELM_TIMEOUT: ${{ inputs.timeout }}
     needs: preflight
-    environment: ${{ inputs.environment }}
+    environment:
+      name: ${{ inputs.environment }}
+      deployment: false
     runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
     concurrency:
       group: microservice-deploy-${{ inputs.environment }}
@@ -207,8 +207,8 @@ jobs:
           base-branch: ${{ inputs.base-branch }}
           validation-branch: ${{ inputs.validation-branch }}
           hotfix-prefix: ${{ inputs.hotfix-prefix }}
-          approval-environment: ${{ inputs.approval-environment }}
-          state-environment: ${{ inputs.state-environment }}
+          deployment-environment: ${{ inputs.environment }}
+          status-context: ${{ inputs.status-context }}
           artifact-name: ${{ inputs.artifact-name }}
           source-workflow: ${{ inputs.source-workflow }}
           mode: record
@@ -233,8 +233,8 @@ jobs:
           base-branch: ${{ inputs.base-branch }}
           validation-branch: ${{ inputs.validation-branch }}
           hotfix-prefix: ${{ inputs.hotfix-prefix }}
-          approval-environment: ${{ inputs.approval-environment }}
-          state-environment: ${{ inputs.state-environment }}
+          deployment-environment: ${{ inputs.environment }}
+          status-context: ${{ inputs.status-context }}
           artifact-name: ${{ inputs.artifact-name }}
           source-workflow: ${{ inputs.source-workflow }}
           mode: record
@@ -248,28 +248,4 @@ jobs:
           retention-days: 90
       - name: Record candidate
         run: |
-          { echo '### VAL candidate — functional approval required'; echo '```json'; cat "$RUNNER_TEMP/val-candidate/candidate.json"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-
-  approve:
-    needs: deploy
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-      actions: read
-      deployments: read
-    # Required reviewers must approve only AFTER performing functional tests in VAL.
-    environment: ${{ inputs.approval-environment }}
-    steps:
-      - uses: pagopa/pdnd-github-actions/validation-candidate@DLD-1569_new-val-cicd-prossima
-        with:
-          prod-account-id: ${{ vars.PROD_AWS_ACCOUNT_ID }}
-          aws-region: ${{ vars.AWS_REGION }}
-          base-branch: ${{ inputs.base-branch }}
-          validation-branch: ${{ inputs.validation-branch }}
-          hotfix-prefix: ${{ inputs.hotfix-prefix }}
-          approval-environment: ${{ inputs.approval-environment }}
-          state-environment: ${{ inputs.state-environment }}
-          artifact-name: ${{ inputs.artifact-name }}
-          source-workflow: ${{ inputs.source-workflow }}
-          mode: approve
-          token: ${{ github.token }}
+          { echo '### VAL candidate — functional approval on pull request required'; echo '```json'; cat "$RUNNER_TEMP/val-candidate/candidate.json"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
