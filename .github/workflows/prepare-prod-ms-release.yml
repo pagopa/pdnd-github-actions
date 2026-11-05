@@ -65,6 +65,12 @@ jobs:
           if [[ -n "$DIGEST" || -n "$SOURCE_SHA" ]]; then
             [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ && "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
             [[ "$UPDATE_VAL" == false && "$SKIP" == false ]]
+            if ! git cat-file -e "$SOURCE_SHA^{commit}" 2>/dev/null; then
+              git fetch --no-tags origin "$SOURCE_SHA" || {
+                echo "Unable to fetch validated source commit $SOURCE_SHA" >&2
+                exit 1
+              }
+            fi
             [[ "$(git rev-parse 'HEAD^{tree}')" == "$(git rev-parse "$SOURCE_SHA^{tree}")" ]]
           fi
       - name: Release-Please
@@ -127,6 +133,12 @@ jobs:
           SOURCE_SHA: ${{ inputs.validated-source-sha }}
         run: |
           set -euo pipefail
+          if ! git cat-file -e "$SOURCE_SHA^{commit}" 2>/dev/null; then
+            git fetch --no-tags origin "$SOURCE_SHA" || {
+              echo "Unable to fetch validated source commit $SOURCE_SHA" >&2
+              exit 1
+            }
+          fi
           git diff --exit-code "$SOURCE_SHA" HEAD -- . \
             ':!CHANGELOG.md' ':!version.txt' ':!.release-please-manifest.json' \
             ':!.k8s/helm/Chart.yaml' ':!.k8s/helm/env-values/prod.yaml'
