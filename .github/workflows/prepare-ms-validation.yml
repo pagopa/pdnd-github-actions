@@ -1,0 +1,110 @@
+name: VAL | Promote DEV image
+on:
+  workflow_call:
+    inputs:
+      codebuild-runner:
+        type: string
+        required: true
+      validation-branch:
+        type: string
+        default: validazione
+      dev-workflow:
+        type: string
+        default: pr-deploy-dev.yml
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    outputs:
+      pr-number: ${{ steps.verify.outputs.pr-number }}
+      merge-sha: ${{ steps.verify.outputs.merge-sha }}
+    steps:
+      - id: verify
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        env:
+          VALIDATION_BRANCH: ${{ inputs.validation-branch }}
+          DEV_WORKFLOW: ${{ inputs.dev-workflow }}
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            if (context.eventName !== 'pull_request' || !pr?.merged || pr.base.ref !== process.env.VALIDATION_BRANCH || pr.head.repo?.full_name !== context.payload.repository.full_name) {
+              throw new Error('A merged PR from this repository to the validation branch is required');
+            }
+            const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              ...context.repo, workflow_id: process.env.DEV_WORKFLOW, event: 'pull_request',
+              branch: pr.head.ref, per_page: 100
+            });
+            const latest = runs.filter(r => r.head_sha === pr.head.sha && r.pull_requests.some(p => p.number === pr.number))
+              .sort((a, b) => b.id - a.id)[0];
+            if (!latest || latest.status !== 'completed' || latest.conclusion !== 'success') {
+              throw new Error('The latest DEV workflow for the merged PR head must complete successfully before promotion');
+            }
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+              ...context.repo, run_id: latest.id, filter: 'latest', per_page: 100
+            });
+            if (!jobs.some(j => j.name.endsWith('build-and-deploy-to-dev') && j.conclusion === 'success')) {
+              throw new Error('The DEV build and deployment job did not complete successfully');
+            }
+            if (!/^[a-f0-9]{40}$/.test(pr.merge_commit_sha)) throw new Error('Missing merge commit SHA');
+            core.setOutput('pr-number', String(pr.number));
+            core.setOutput('merge-sha', pr.merge_commit_sha);
+  promote:
+    needs: verify
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Login to DEV ECR
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2
+        with:
+          registries: ${{ vars.DEV_AWS_ACCOUNT_ID }}
+      - name: Pull DEV image
+        env:
+          REGION: ${{ vars.AWS_REGION }}
+          DEV_ACCOUNT: ${{ vars.DEV_AWS_ACCOUNT_ID }}
+          PROD_ACCOUNT: ${{ vars.PROD_AWS_ACCOUNT_ID }}
+          PR_NUMBER: ${{ needs.verify.outputs.pr-number }}
+          MERGE_SHA: ${{ needs.verify.outputs.merge-sha }}
+        run: |
+          set -euo pipefail
+          [[ "$DEV_ACCOUNT" =~ ^[0-9]{12}$ && "$PROD_ACCOUNT" =~ ^[0-9]{12}$ && "$PR_NUMBER" =~ ^[0-9]+$ && "$MERGE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          source="$DEV_ACCOUNT.dkr.ecr.$REGION.amazonaws.com/${GITHUB_REPOSITORY#*/}:pr-$PR_NUMBER"
+          target="$PROD_ACCOUNT.dkr.ecr.$REGION.amazonaws.com/${GITHUB_REPOSITORY#*/}:val-$MERGE_SHA"
+          docker pull "$source"
+          docker tag "$source" "$target"
+      - name: Create target ECR repository if missing
+        id: repository
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          ACCOUNT: ${{ vars.PROD_AWS_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          [[ "$(aws sts get-caller-identity --query Account --output text)" == "$ACCOUNT" ]]
+          if aws ecr describe-repositories --registry-id "$ACCOUNT" --repository-names "${GITHUB_REPOSITORY#*/}" >/dev/null 2>"$RUNNER_TEMP/ecr-check.err"; then
+            echo 'missing=false' >> "$GITHUB_OUTPUT"
+          elif grep -q RepositoryNotFoundException "$RUNNER_TEMP/ecr-check.err"; then
+            echo 'missing=true' >> "$GITHUB_OUTPUT"
+          else
+            cat "$RUNNER_TEMP/ecr-check.err" >&2; exit 1
+          fi
+      - name: Create target ECR repository
+        if: steps.repository.outputs.missing == 'true'
+        uses: pagopa/pdnd-github-actions/create-ecr-repository@9b197047943123c2d716acd6953ce5c20e1d6807
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        with:
+          repositoryName: ${{ github.event.repository.name }}
+      - name: Login to target ECR
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2
+        with:
+          registries: ${{ vars.PROD_AWS_ACCOUNT_ID }}
+      - name: Push VAL image
+        env:
+          REGION: ${{ vars.AWS_REGION }}
+          ACCOUNT: ${{ vars.PROD_AWS_ACCOUNT_ID }}
+          MERGE_SHA: ${{ needs.verify.outputs.merge-sha }}
+        run: |
+          set -euo pipefail
+          target="$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/${GITHUB_REPOSITORY#*/}:val-$MERGE_SHA"
+          docker push "$target"
+          echo "Promoted $target" >> "$GITHUB_STEP_SUMMARY"

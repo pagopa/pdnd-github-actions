@@ -1,4 +1,4 @@
-name: VAL | Build, deploy and approve candidate
+name: VAL | Deploy candidate
 on:
   workflow_call:
     inputs:
@@ -113,63 +113,7 @@ jobs:
           [[ "$VALUES_NAME" =~ ^[a-zA-Z0-9_-]+$ ]]
           image=$(yq -r '.image.repository' ".k8s/helm/env-values/$VALUES_NAME.yaml")
           [[ "$image" == "$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/${GITHUB_REPOSITORY#*/}" ]]
-      - name: Check candidate image repository
-        id: candidate_repository
-        env:
-          ACCOUNT: ${{ vars.PROD_AWS_ACCOUNT_ID }}
-          AWS_REGION: ${{ vars.AWS_REGION }}
-        run: |
-          set -euo pipefail
-          current_account=$(aws sts get-caller-identity --query Account --output text)
-          if [[ "$current_account" != "$ACCOUNT" ]]; then
-            echo "Runner AWS account does not match the candidate registry account." >&2
-            exit 1
-          fi
-          if aws ecr describe-repositories --registry-id "$ACCOUNT" \
-              --repository-names "${GITHUB_REPOSITORY#*/}" >/dev/null 2>"$RUNNER_TEMP/ecr-check.err"; then
-            echo "missing=false" >> "$GITHUB_OUTPUT"
-          elif grep -q 'RepositoryNotFoundException' "$RUNNER_TEMP/ecr-check.err"; then
-            echo "missing=true" >> "$GITHUB_OUTPUT"
-          else
-            cat "$RUNNER_TEMP/ecr-check.err" >&2
-            exit 1
-          fi
-      - name: Create candidate image repository
-        if: steps.candidate_repository.outputs.missing == 'true'
-        uses: pagopa/pdnd-github-actions/create-ecr-repository@9b197047943123c2d716acd6953ce5c20e1d6807
-        env:
-          AWS_REGION: ${{ vars.AWS_REGION }}
-        with:
-          repositoryName: ${{ github.event.repository.name }}
-      - name: Start Docker daemon if needed
-        run: |
-          set -euo pipefail
-          if docker info >/dev/null 2>&1; then
-            exit 0
-          fi
-          if ! command -v dockerd >/dev/null 2>&1; then
-            echo "Docker daemon executable not found in the runner image." >&2
-            exit 1
-          fi
-          if [ "$(id -u)" -eq 0 ]; then
-            nohup dockerd --host=unix:///var/run/docker.sock >"$RUNNER_TEMP/dockerd.log" 2>&1 &
-          else
-            sudo -n true
-            sudo -n nohup "$(command -v dockerd)" --host=unix:///var/run/docker.sock >"$RUNNER_TEMP/dockerd.log" 2>&1 &
-          fi
-          for attempt in {1..30}; do
-            if docker info >/dev/null 2>&1; then
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "Docker daemon did not become available; runner needs access to its socket." >&2
-          cat "$RUNNER_TEMP/dockerd.log" >&2
-          exit 1
-      - uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2
-        with:
-          registries: ${{ vars.PROD_AWS_ACCOUNT_ID }}
-      - name: Build immutable candidate and snapshot chart
+      - name: Resolve promoted image and snapshot chart
         env:
           ACCOUNT: ${{ vars.PROD_AWS_ACCOUNT_ID }}
           AWS_REGION: ${{ vars.AWS_REGION }}
@@ -177,11 +121,13 @@ jobs:
           COMPANION: ${{ inputs.companion }}
         run: |
           set -euo pipefail
+          [[ "$(aws sts get-caller-identity --query Account --output text)" == "$ACCOUNT" ]]
           image="$ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/${GITHUB_REPOSITORY#*/}"
-          tag="val-$GITHUB_SHA-$GITHUB_RUN_ID"
-          docker build --build-arg DOCKER_REGISTRY_URI="$ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com" -t "$image:$tag" .
-          docker push "$image:$tag"
-          digest=$(aws ecr describe-images --repository-name "${GITHUB_REPOSITORY#*/}" --image-ids "imageTag=$tag" --query 'imageDetails[0].imageDigest' --output text)
+          tag="val-$GITHUB_SHA"
+          digest=$(aws ecr describe-images --registry-id "$ACCOUNT" --repository-name "${GITHUB_REPOSITORY#*/}" --image-ids "imageTag=$tag" --query 'imageDetails[0].imageDigest' --output text) || {
+            echo "No promoted VAL image found for $GITHUB_SHA. Check the VAL promotion workflow." >&2
+            exit 1
+          }
           [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
           mkdir -p "$RUNNER_TEMP/val-candidate"
           export CANDIDATE_DIGEST="$digest"

@@ -1,13 +1,50 @@
 # Validation deployment for microservices
 
-`deploy-ms-validation.yml` and `rollback-ms-validation.yml` are reusable workflows,
+`prepare-ms-validation.yml`, `deploy-ms-validation.yml` and `rollback-ms-validation.yml` are reusable workflows,
 following the `workflow_call` interface of `deploy-ms-production.yml`. They contain
 no application-specific branch names, runner names or repository variables.
 Application repositories own their triggers, branch policy and environment configuration.
 
-## Deploy and approve
+## Promote, deploy and approve
 
-Example caller (replace `SHARED_WORKFLOW_SHA` with a published full commit SHA):
+On merge of a pull request into the validation branch, call
+`prepare-ms-validation.yml`. The caller must use the `pull_request: closed`
+event and run only for merged PRs. The workflow checks for a successful DEV
+build on the PR head, pulls `pr-<number>` from DEV ECR, and pushes it to the
+PROD account ECR with tag `val-<merge-commit-sha>`. It uses the promotion runner,
+which requires cross-account DEV ECR pull and target ECR push access. It does
+not build an image or deploy to the cluster.
+
+The manual deployment selects the validation branch at that same merge commit;
+its image is resolved from the `val-<commit-sha>` tag in the target registry.
+A PR excluded by the DEV workflow's path filters has no DEV build and cannot be
+promoted by this workflow. A newer validation-branch commit requires its own
+successful promotion. Hotfix branch deployments likewise require an image tag
+promoted for that exact commit; the default promotion caller only handles merges
+into the validation branch.
+
+Example promotion caller (replace `SHARED_WORKFLOW_SHA` with a published full commit SHA):
+
+```yaml
+name: VAL | Promote DEV image
+on:
+  pull_request:
+    types: [closed]
+    branches: [validation]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  promote:
+    if: github.event.pull_request.merged == true
+    uses: pagopa/pdnd-github-actions/.github/workflows/prepare-ms-validation.yml@SHARED_WORKFLOW_SHA
+    secrets: inherit
+    with:
+      validation-branch: validation
+      codebuild-runner: codebuild-my-service-promote-prod
+```
+
+Example deployment caller (replace `SHARED_WORKFLOW_SHA` with a published full commit SHA):
 
 ```yaml
 name: Deploy validation candidate
@@ -21,6 +58,8 @@ permissions:
   contents: read
   actions: read
   deployments: write
+  pull-requests: read
+  statuses: write
 jobs:
   deploy:
     uses: pagopa/pdnd-github-actions/.github/workflows/deploy-ms-validation.yml@SHARED_WORKFLOW_SHA
@@ -30,9 +69,9 @@ jobs:
       expected-cluster: my-uat-cluster
       environment: uat
       environment-values: uat
-      base-branch: master
-      validation-branch: staging
-      hotfix-prefix: emergency/
+      base-branch: main
+      validation-branch: validation
+      hotfix-prefix: ""
       status-context: my-service/promotion-policy
       artifact-name: uat-candidate
       source-workflow: .github/workflows/deploy-validation.yml
@@ -42,9 +81,11 @@ jobs:
 `source-workflow` must match the **caller file**, not the shared file. Keep it
 consistent in all candidate verification and rollback calls.
 
-The workflow checks out the immutable event SHA, builds the service image, deploys
-it by digest, and archives the chart and candidate manifest. Helm tests are not run;
-functional verification is performed before approval.
+The deployment workflow checks out the selected SHA, resolves the previously
+promoted image in ECR, deploys it by digest, and archives the chart and candidate
+manifest. The chart is packaged at deploy time; it is not published by the
+promotion workflow. Helm tests are not run; functional verification is performed
+before approval.
 A reviewer approves the promotion pull request after testing, with `VAL-Run: <id>`
 in the review comment as well as in the PR description. The policy requires an
 authorized reviewer other than the PR author, the exact candidate commit and run,
@@ -73,7 +114,7 @@ layout `.k8s/helm`, with a namespace in `values.yaml`, a chart named after the
 application repository, and `image.repository`/`image.digest` in environment values.
 The image repository is also named after the application repository.
 The image registry uses the existing `PROD_AWS_ACCOUNT_ID` and `AWS_REGION` variables:
-validation candidates are published there without creating a production release.
+validation images are promoted there without creating a production release.
 The Environment must define `EKS_CLUSTER` and `DEPLOY_ENVIRONMENT` (equal to
 `environment-values`). Runner tooling and IAM permissions must be provisioned separately.
 
@@ -138,7 +179,7 @@ Development branch references are temporary. Publish the generic action first
 
 ```sh
 node --test tests/validation-candidate.test.cjs
-actionlint .github/workflows/deploy-ms-validation.yml .github/workflows/rollback-ms-validation.yml .github/workflows/prepare-prod-ms-release.yml
+actionlint .github/workflows/prepare-ms-validation.yml .github/workflows/deploy-ms-validation.yml .github/workflows/rollback-ms-validation.yml .github/workflows/prepare-prod-ms-release.yml
 ```
 
 Tests cover the default policy and an independent configuration with different
