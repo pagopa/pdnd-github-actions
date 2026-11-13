@@ -34,6 +34,7 @@ on:
 permissions:
   contents: read
   actions: read
+  pull-requests: read
 jobs:
   promote:
     if: github.event.pull_request.merged == true

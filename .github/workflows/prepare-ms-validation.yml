@@ -14,6 +14,7 @@ on:
 permissions:
   contents: read
   actions: read
+  pull-requests: read
 jobs:
   verify:
     runs-on: ubuntu-24.04
@@ -36,10 +37,37 @@ jobs:
               ...context.repo, workflow_id: process.env.DEV_WORKFLOW, event: 'pull_request',
               branch: pr.head.ref, per_page: 100
             });
-            const latest = runs.filter(r => r.head_sha === pr.head.sha && r.pull_requests.some(p => p.number === pr.number))
-              .sort((a, b) => b.id - a.id)[0];
+            const opened = Date.parse(pr.created_at);
+            const merged = Date.parse(pr.merged_at);
+            if (!Number.isFinite(opened) || !Number.isFinite(merged)) throw new Error('Missing PR dates');
+            const latest = runs.filter(r => {
+              const started = Date.parse(r.created_at);
+              return r.head_sha === pr.head.sha && r.head_branch === pr.head.ref &&
+                Number.isFinite(started) && started >= opened && started <= merged;
+            }).sort((a, b) => b.id - a.id)[0];
             if (!latest || latest.status !== 'completed' || latest.conclusion !== 'success') {
               throw new Error('The latest DEV workflow for the merged PR head must complete successfully before promotion');
+            }
+            const linkedPRs = latest.pull_requests || [];
+            if (linkedPRs.length) {
+              if (!linkedPRs.some(p => p.number === pr.number)) throw new Error('DEV workflow belongs to another PR');
+            } else {
+              // GitHub can return an empty association after a PR is closed. Only
+              // fall back when this branch had exactly one open PR at run creation.
+              const prs = await github.paginate(github.rest.pulls.list, {
+                ...context.repo, state: 'all', head: `${context.repo.owner}:${pr.head.ref}`, per_page: 100
+              });
+              const started = Date.parse(latest.created_at);
+              const matching = prs.filter(p => {
+                const created = Date.parse(p.created_at);
+                const closed = p.closed_at ? Date.parse(p.closed_at) : Infinity;
+                return p.head.repo?.full_name === context.payload.repository.full_name &&
+                  p.head.ref === pr.head.ref && Number.isFinite(created) && !Number.isNaN(closed) &&
+                  created <= started && started <= closed;
+              });
+              if (matching.length !== 1 || matching[0].number !== pr.number) {
+                throw new Error('Cannot unambiguously associate the DEV workflow with this PR');
+              }
             }
             const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
               ...context.repo, run_id: latest.id, filter: 'latest', per_page: 100
