@@ -1,0 +1,143 @@
+name: VAL | Deploy existing release
+on:
+  workflow_call:
+    inputs:
+      release-version:
+        description: Published release version (with or without v prefix)
+        type: string
+        required: true
+      codebuild-runner:
+        type: string
+        required: true
+      expected-cluster:
+        type: string
+        required: true
+      validation-branch:
+        type: string
+        default: validazione
+      status-context:
+        type: string
+        default: validation/promotion-policy
+      timeout:
+        type: string
+        default: 20m
+permissions:
+  contents: read
+  actions: read
+  deployments: write
+  pull-requests: read
+  statuses: write
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+      commit: ${{ steps.release.outputs.commit }}
+    steps:
+      - id: release
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        env:
+          VERSION: ${{ inputs.release-version }}
+          VALIDATION_BRANCH: ${{ inputs.validation-branch }}
+        with:
+          script: |
+            if (context.eventName !== 'workflow_dispatch' || context.ref !== `refs/heads/${process.env.VALIDATION_BRANCH}`) {
+              throw new Error('Dispatch this workflow from the validation branch');
+            }
+            const version = process.env.VERSION.replace(/^v/, '');
+            if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version)) {
+              throw new Error('Enter a release version such as 0.3.116 or v0.3.116');
+            }
+            const tag = `v${version}`;
+            const { data: release } = await github.rest.repos.getReleaseByTag({ ...context.repo, tag });
+            if (release.draft || release.prerelease) throw new Error('A published stable release is required');
+            const { data: ref } = await github.rest.git.getRef({ ...context.repo, ref: `tags/${tag}` });
+            let object = ref.object;
+            if (object.type === 'tag') object = (await github.rest.git.getTag({ ...context.repo, tag_sha: object.sha })).data.object;
+            if (object.type !== 'commit' || !/^[a-f0-9]{40}$/.test(object.sha)) throw new Error('Release tag must point to a commit');
+            core.setOutput('tag', tag);
+            core.setOutput('version', version);
+            core.setOutput('commit', object.sha);
+  deploy:
+    needs: verify
+    environment:
+      name: val
+      deployment: false
+    runs-on: ${{ inputs.codebuild-runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+    concurrency:
+      group: microservice-deploy-val
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          ref: ${{ needs.verify.outputs.commit }}
+          persist-credentials: false
+      - name: Verify release image and VAL chart
+        env:
+          ACCOUNT: ${{ vars.PROD_AWS_ACCOUNT_ID }}
+          REGION: ${{ vars.AWS_REGION }}
+          CLUSTER: ${{ vars.EKS_CLUSTER }}
+          DEPLOY_ENVIRONMENT: ${{ vars.DEPLOY_ENVIRONMENT }}
+          EXPECTED_CLUSTER: ${{ inputs.expected-cluster }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          COMMIT: ${{ needs.verify.outputs.commit }}
+        run: |
+          set -euo pipefail
+          [[ "$ACCOUNT" =~ ^[0-9]{12}$ && -n "$REGION" && "$DEPLOY_ENVIRONMENT" == val && -n "$CLUSTER" && "$CLUSTER" == "$EXPECTED_CLUSTER" ]]
+          [[ "$(aws sts get-caller-identity --query Account --output text)" == "$ACCOUNT" ]]
+          [[ -f .k8s/helm/env-values/val.yaml && -f .k8s/helm/env-values/prod.yaml ]]
+          image="$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/${GITHUB_REPOSITORY#*/}"
+          [[ "$(yq -r '.image.repository' .k8s/helm/env-values/val.yaml)" == "$image" ]]
+          [[ "$(yq -r '.image.repository' .k8s/helm/env-values/prod.yaml)" == "$image" ]]
+          expected=$(yq -r '.image.digest' .k8s/helm/env-values/prod.yaml)
+          actual=$(aws ecr describe-images --registry-id "$ACCOUNT" --region "$REGION" --repository-name "${GITHUB_REPOSITORY#*/}" --image-ids "imageTag=$VERSION" --query 'imageDetails[0].imageDigest' --output text)
+          [[ "$actual" =~ ^sha256:[a-f0-9]{64}$ && "$actual" == "$expected" ]] || { echo 'Release ECR tag and release chart digest differ.' >&2; exit 1; }
+          export RELEASE_DIGEST="$actual"
+          yq -i '.image.digest = strenv(RELEASE_DIGEST)' .k8s/helm/env-values/val.yaml
+          helm lint .k8s/helm -f .k8s/helm/env-values/val.yaml
+          mkdir -p "$RUNNER_TEMP/val-release"
+          helm package .k8s/helm --destination "$RUNNER_TEMP/val-release"
+          mv "$RUNNER_TEMP/val-release/"*.tgz "$RUNNER_TEMP/val-release/release-chart.tgz"
+          namespace=$(yq -r '.namespace' .k8s/helm/values.yaml)
+          jq -n --arg repository "$GITHUB_REPOSITORY" --arg sha "$COMMIT" --arg digest "$actual" \
+            --arg run_id "$GITHUB_RUN_ID" --arg namespace "$namespace" \
+            '{repository:$repository, sha:$sha, digest:$digest, run_id:$run_id, namespace:$namespace}' > "$RUNNER_TEMP/val-release/candidate.json"
+      - name: Mark VAL deployment in progress
+        uses: pagopa/pdnd-github-actions/validation-candidate@DLD-1569_new-val-cicd-prossima
+        with:
+          prod-account-id: ${{ vars.PROD_AWS_ACCOUNT_ID }}
+          aws-region: ${{ vars.AWS_REGION }}
+          validation-branch: ${{ inputs.validation-branch }}
+          status-context: ${{ inputs.status-context }}
+          mode: record
+          deployment-state: in_progress
+          candidate-file: ${{ runner.temp }}/val-release/candidate.json
+          token: ${{ github.token }}
+      - name: Deploy release to VAL
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          CLUSTER: ${{ vars.EKS_CLUSTER }}
+          HELM_TIMEOUT: ${{ inputs.timeout }}
+        run: |
+          set -euo pipefail
+          namespace=$(jq -r '.namespace' "$RUNNER_TEMP/val-release/candidate.json")
+          aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER"
+          helm upgrade --install "${GITHUB_REPOSITORY#*/}" "$RUNNER_TEMP/val-release/release-chart.tgz" \
+            -n "$namespace" -f .k8s/helm/values.yaml -f .k8s/helm/env-values/val.yaml --atomic --timeout "$HELM_TIMEOUT"
+      - name: Record actual VAL state
+        uses: pagopa/pdnd-github-actions/validation-candidate@DLD-1569_new-val-cicd-prossima
+        with:
+          prod-account-id: ${{ vars.PROD_AWS_ACCOUNT_ID }}
+          aws-region: ${{ vars.AWS_REGION }}
+          validation-branch: ${{ inputs.validation-branch }}
+          status-context: ${{ inputs.status-context }}
+          mode: record
+          candidate-file: ${{ runner.temp }}/val-release/candidate.json
+          token: ${{ github.token }}
+      - name: Summarize deployment
+        env:
+          RELEASE_TAG: ${{ needs.verify.outputs.tag }}
+          RELEASE_COMMIT: ${{ needs.verify.outputs.commit }}
+        run: |
+          { echo "### VAL release $RELEASE_TAG"; echo "Source commit: $RELEASE_COMMIT"; echo '```json'; cat "$RUNNER_TEMP/val-release/candidate.json"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

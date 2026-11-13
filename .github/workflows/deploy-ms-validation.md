@@ -119,6 +119,24 @@ validation images are promoted there without creating a production release.
 The Environment must define `EKS_CLUSTER` and `DEPLOY_ENVIRONMENT` (equal to
 `environment-values`). Runner tooling and IAM permissions must be provisioned separately.
 
+## Deploy an existing release to VAL
+
+`deploy-ms-validation-release.yml` deploys a published stable GitHub release to
+VAL without creating a new release. Dispatch the application caller from the
+validation branch with `release-version` (for example `0.3.116` or `v0.3.116`).
+The workflow checks out the release commit, reads its Helm chart and environment
+values, and verifies that the ECR image tag matches the PROD digest recorded
+at that commit. The release must contain a VAL values file and its image must
+still exist in ECR. The workflow records the VAL deployment and invalidates
+outstanding candidate promotion statuses, but does not create a new promotable
+candidate artifact. Deploying an existing release to PROD remains the separate
+production deploy, selecting the matching Git tag.
+
+The caller requires `contents: read`, `actions: read`, `pull-requests: read`,
+`deployments: write` and `statuses: write`; it provides the validation runner,
+expected cluster and promotion status context. Deployments are serialized with
+candidate deploys and rollbacks in the same repository.
+
 ## Rollback
 
 Call `rollback-ms-validation.yml` with the same environment and candidate policy,
@@ -179,8 +197,8 @@ Development branch references are temporary. Publish the generic action first
 (commit B). Application callers pin the action to A and workflows to B.
 
 ```sh
-node --test tests/validation-candidate.test.cjs
-actionlint .github/workflows/prepare-ms-validation.yml .github/workflows/deploy-ms-validation.yml .github/workflows/rollback-ms-validation.yml .github/workflows/prepare-prod-ms-release.yml
+node --test tests/validation-candidate.test.cjs tests/prepare-ms-validation.test.cjs tests/deploy-ms-validation-release.test.cjs
+actionlint .github/workflows/deploy-ms-validation-release.yml .github/workflows/prepare-ms-validation.yml .github/workflows/deploy-ms-validation.yml .github/workflows/rollback-ms-validation.yml .github/workflows/prepare-prod-ms-release.yml
 ```
 
 Tests cover the default policy and an independent configuration with different
