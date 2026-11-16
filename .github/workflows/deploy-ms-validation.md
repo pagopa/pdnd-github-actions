@@ -190,6 +190,23 @@ strict branch protections, workflow ownership and Environment branch restriction
 The release-bot exception checks both author identity and exact changed paths;
 a branch prefix alone cannot bypass validation.
 
+## Manual recovery of a validated release
+
+Applications may expose a manual recovery workflow for a candidate already
+validated on a branch whose content is present on the default branch. Resolve
+the candidate and its PR approval using `validation-candidate` in `candidate`
+mode; independently verify the latest successful VAL deployment and the default
+branch content. Run the preparation workflow with `validated-image-digest`,
+`validated-source-sha` and `expected-base-sha`. The latter causes the shared
+workflow to stop if the default branch advances before release preparation,
+image promotion or release PR finalization. The value must be an exact commit
+SHA; leaving it empty preserves the existing release behavior.
+
+The recovery caller is responsible for authorizing and verifying any narrowly
+scoped differences between the validated commit and its default-branch commit.
+It must serialize with VAL deploys and ordinary release preparation. The
+production deploy remains a separate manual operation.
+
 ## Publication and verification
 
 Development branch references are temporary. Publish the generic action first
