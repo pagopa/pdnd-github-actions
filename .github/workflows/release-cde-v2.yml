@@ -173,7 +173,7 @@ jobs:
           fetch-depth: 0
       - name: Setup repo
         run: |
-          git pull origin main
+          git pull origin migrazione
           git config --global --add safe.directory $GITHUB_WORKSPACE/${{ fromJSON(matrix.run).base_dir }}
       - name: Python Semantic Release
         uses: python-semantic-release/python-semantic-release@9a026e9303981c866c3425723009becb2437c757 #v10.6.2
