@@ -39,6 +39,16 @@ jobs:
         with:
           file: 'input_config.json'
           schema: 'schema.json'
+      - name: Extracts owner
+        id: extract_owner
+        run: |
+          echo "owner=$(echo ${{ inputs.config-json }} | jq -r '.owner')" >> "$GITHUB_OUTPUT"
+
+      - name: Get bot users
+        uses: aws-actions/aws-secretsmanager-get-secrets@4e95aaf6ba8028772f5384971d4fedccfaab8621 #v2.0.6
+        with:
+          secret-ids: |
+            CLOUDERA_BOT_USER,${{ vars.CLOUDERA_BOT_USERS_SECRET_NAME }}/${{ steps.extract_owner.outputs.owner }}
       - name: Build commands
         id: parse_json
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 #v9
@@ -69,6 +79,12 @@ jobs:
             console.log(${{ inputs.config-json }})
             config=JSON.parse(${{ inputs.config-json }});
             console.log("Using configuration:", config);
+            const dag_owner = config.owner;
+            const clouderaBotUserSecret = JSON.parse(process.env.CLOUDERA_BOT_USER);
+            const acces_keys = clouderaBotUserSecret.access_keys;
+            if (!acces_keys){
+              throw new Error('owner specified not found in secrets');
+            }
             const command_sequence = [];
             let opts = buildOptions(config.job)
 
@@ -122,12 +138,11 @@ jobs:
                 cde job schedule unpause --name ${config.job.name}
             `;
             command_sequence.push(job_unpause_cmd)
-            console.log("DAG owner:", config.owner);
             res = {
                 "commands" : command_sequence,
                 "vcluster" : "${{ vars[format('VCLUSTER_ENDPOINT_{0}', inputs.virtual-env)] }}",
                 "base_dir" : config.base_dir,
-                "owner" : config.owner
+                "cde_acces_keys" : acces_keys
             }
             return res
     outputs:
@@ -154,25 +169,18 @@ jobs:
         with:
           name: build-artifact
           path: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}  
-      - name: Get secrets from AWS Secrets Manager
-        uses: aws-actions/aws-secretsmanager-get-secrets@2cb1a461cbd4865ac4299648312e4704c646cd53
-        with:
-          secret-ids: |
-            CDP_AUTH,${{ contains(inputs.virtual-env, 'dtd') && vars.AWS_SECRET_CDP_AUTH_DTD || vars.AWS_SECRET_CDP_AUTH }}
-          parse-json-secrets: true
       - name: Setup CDE CLI
         uses: pagopa/pdnd-github-actions/setup-cde-cli@82eed1f3ff421aed8de777b7cb3f1bfb0a4a2475
         with:
             version: "1.20.3"
-            access_key_id: ${{ env.CDP_AUTH_ACCESS_KEYS_ACCESS_KEY_ID }}
-            private_key: ${{ env.CDP_AUTH_ACCESS_KEYS_PRIVATE_KEY }}
+            access_key_id: ${{  fromJson(needs.parse-config.outputs.parsed_config).cde_acces_keys.access_key_id }}
+            private_key: ${{  fromJson(needs.parse-config.outputs.parsed_config).cde_acces_keys.private_key }}
             codeartifact_domain: ${{ vars.CODEARTIFACT_DOMAIN }}
             codeartifact_repository: ${{ vars.CODEARTIFACT_REPOSITORY }}
             vcluster_endpoint:  ${{ vars[format('VCLUSTER_ENDPOINT_{0}', inputs.virtual-env)] }}
       - name: Run commands
         working-directory: ${{  fromJson(needs.parse-config.outputs.parsed_config).base_dir }}
         run: |
-          echo "Deploying for DAG owner: ${{ fromJson(needs.parse-config.outputs.parsed_config).owner }}"
           cat << 'EOF' > run_cmd.sh
           ${{ matrix.command }}
           EOF
